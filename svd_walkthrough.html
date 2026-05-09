@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVD by Hand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4eee2;
+    --bg-card: #faf6ec;
+    --bg-card-soft: #f0e9d8;
+    --ink: #1c2845;
+    --ink-soft: #4a5474;
+    --accent: #b8451f;
+    --accent-light: #e9b594;
+    --highlight: #ffe4ad;
+    --highlight-strong: #ffcc66;
+    --muted: #8d8470;
+    --border: #c9bda2;
+    --positive: #2d6a4f;
+    --negative: #9d2a2a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.65;
+    padding: 2rem 1rem 5rem;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(184,69,31,0.04) 0%, transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(28,40,69,0.04) 0%, transparent 50%);
+  }
+  .container { max-width: 780px; margin: 0 auto; }
+  
+  /* Header */
+  header { margin-bottom: 2.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+  .meta-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--muted); margin-bottom: 0.75rem;
+  }
+  .step-indicator { color: var(--accent); font-weight: 600; }
+  .step-dots { display: flex; gap: 0.4rem; }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--border); cursor: pointer; transition: all 0.2s;
+  }
+  .dot.active { background: var(--accent); transform: scale(1.4); }
+  .dot.visited { background: var(--accent-light); }
+  h1 {
+    font-family: 'Fraunces', serif; font-weight: 700;
+    font-size: 2.4rem; line-height: 1.1; letter-spacing: -0.02em;
+    color: var(--ink); margin-bottom: 0.4rem;
+  }
+  .subtitle {
+    font-style: italic; color: var(--ink-soft); font-size: 1.08rem;
+  }
+  
+  /* Step content */
+  .step {
+    animation: fadeUp 0.45s ease-out;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  h2 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 1.7rem; line-height: 1.2;
+    margin-bottom: 0.9rem; color: var(--ink);
+  }
+  h2 .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem; font-weight: 600;
+    color: var(--accent); margin-right: 0.5rem;
+    vertical-align: 0.3em;
+  }
+  p { margin-bottom: 1rem; color: var(--ink-soft); }
+  p strong { color: var(--ink); font-weight: 600; }
+  em { color: var(--ink); }
+  
+  /* Card */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 1px 0 rgba(28,40,69,0.04);
+  }
+  .card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--muted); margin-bottom: 0.9rem;
+  }
+  
+  /* Matrix display */
+  .matrix-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 1rem 0;
+  }
+  .matrix-with-labels {
+    display: grid;
+    gap: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92rem;
+  }
+  .col-labels {
+    display: flex; gap: 2px; padding-left: 88px;
+  }
+  .col-label {
+    width: 62px; text-align: center;
+    font-size: 0.7rem; color: var(--muted);
+    padding-bottom: 6px; line-height: 1.1;
+  }
+  .matrix-row {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .row-label {
+    width: 84px; text-align: right; padding-right: 12px;
+    font-size: 0.78rem; color: var(--muted);
+  }
+  .cell {
+    width: 60px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-card-soft);
+    border: 1px solid transparent;
+    transition: all 0.18s;
+    font-weight: 500;
+  }
+  .cell.clickable { cursor: pointer; }
+  .cell.clickable:hover { background: var(--highlight); border-color: var(--accent); }
+  .cell.active { background: var(--highlight-strong); border-color: var(--accent); font-weight: 600; }
+  .cell.dim { opacity: 0.35; }
+  .cell.row-hl { background: var(--highlight); }
+  .cell.col-hl { background: var(--highlight); }
+  .cell.both-hl { background: var(--highlight-strong); }
+  .cell.neg { color: var(--negative); }
+  .cell.pos { color: var(--positive); }
+  
+  /* Bracket */
+  .bracketed {
+    position: relative;
+    padding: 0 14px;
+  }
+  .bracketed::before, .bracketed::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 8px;
+    border: 2px solid var(--ink); 
+  }
+  .bracketed::before { left: 0; border-right: none; }
+  .bracketed::after { right: 0; border-left: none; }
+  
+  /* Equations */
+  .equation {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg-card-soft);
+    padding: 0.9rem 1.2rem;
+    border-left: 3px solid var(--accent);
+    margin: 1rem 0;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .equation.center { text-align: center; }
+  
+  /* Inline matrix (smaller, inline with text) */
+  .inline-vec {
+    display: inline-flex; gap: 2px; vertical-align: middle;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+  }
+  .inline-vec .cell { width: 48px; height: 30px; font-size: 0.85rem; }
+  
+  /* Bar chart */
+  .bars { margin: 1.2rem 0; }
+  .bar-row {
+    display: grid; grid-template-columns: 90px 1fr 80px;
+    align-items: center; gap: 0.8rem; margin-bottom: 0.5rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+  }
+  .bar-label { color: var(--muted); }
+  .bar-track {
+    height: 22px; background: var(--bg-card-soft);
+    border-radius: 2px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; background: var(--accent);
+    transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .bar-fill.muted { background: var(--accent-light); }
+  .bar-value { color: var(--ink); font-weight: 500; }
+  
+  /* Calc box */
+  .calc-box {
+    background: var(--bg-card-soft);
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 1rem 1.2rem;
+    margin-top: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    min-height: 60px;
+  }
+  .calc-box .hint { color: var(--muted); font-style: italic; font-family: 'Crimson Pro', serif; font-size: 0.95rem; }
+  .calc-line { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.3rem; }
+  .calc-tag { color: var(--muted); margin-right: 0.4rem; min-width: 70px; }
+  .calc-result { color: var(--accent); font-weight: 600; }
+  .term { padding: 1px 4px; border-radius: 2px; }
+  .term.pos-prod { background: rgba(45, 106, 79, 0.12); color: var(--positive); }
+  .term.neg-prod { background: rgba(157, 42, 42, 0.12); color: var(--negative); }
+  
+  /* Selectors for prediction */
+  .selectors {
+    display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+  }
+  .selector-group {
+    flex: 1; min-width: 160px;
+  }
+  .selector-group label {
+    display: block; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); margin-bottom: 0.4rem;
+  }
+  select {
+    width: 100%; padding: 0.6rem 0.8rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.95rem;
+    color: var(--ink); border-radius: 4px;
+    cursor: pointer;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+  
+  /* User row clickable */
+  .user-rows .matrix-row {
+    cursor: pointer; transition: background 0.15s;
+    padding: 2px 4px; border-radius: 4px;
+  }
+  .user-rows .matrix-row:hover { background: var(--highlight); }
+  .user-rows .matrix-row.active { background: var(--highlight-strong); }
+  
+  /* Navigation */
+  nav.controls {
+    display: flex; justify-content: space-between; gap: 1rem;
+    margin-top: 3rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+  button.nav {
+    padding: 0.7rem 1.4rem;
+    background: transparent;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 500;
+    cursor: pointer; transition: all 0.18s;
+    border-radius: 2px;
+  }
+  button.nav:hover:not(:disabled) {
+    background: var(--ink); color: var(--bg);
+  }
+  button.nav:disabled { opacity: 0.3; cursor: not-allowed; }
+  button.nav.primary {
+    background: var(--accent); border-color: var(--accent); color: white;
+  }
+  button.nav.primary:hover:not(:disabled) {
+    background: #9d3a18; border-color: #9d3a18;
+  }
+  
+  /* Prediction result */
+  .prediction-result {
+    text-align: center; padding: 1.5rem 1rem;
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card-soft) 100%);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    margin-top: 1rem;
+  }
+  .prediction-result .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .prediction-result .number {
+    font-family: 'Fraunces', serif; font-size: 3rem; font-weight: 600;
+    color: var(--accent); margin: 0.3rem 0;
+    line-height: 1;
+  }
+  .prediction-result .actual {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+    color: var(--ink-soft);
+  }
+  .prediction-result .check { color: var(--positive); }
+  
+  /* Responsive */
+  @media (max-width: 640px) {
+    body { font-size: 16px; padding: 1.5rem 0.75rem 4rem; }
+    h1 { font-size: 1.9rem; }
+    h2 { font-size: 1.4rem; }
+    .cell { width: 48px; height: 34px; font-size: 0.82rem; }
+    .col-labels { padding-left: 70px; }
+    .col-label { width: 50px; font-size: 0.65rem; }
+    .row-label { width: 66px; font-size: 0.72rem; padding-right: 8px; }
+    .equation { font-size: 0.82rem; padding: 0.7rem 0.9rem; }
+    .calc-box { font-size: 0.78rem; padding: 0.8rem; }
+    .card { padding: 1.1rem; }
+    .bar-row { grid-template-columns: 70px 1fr 60px; gap: 0.5rem; font-size: 0.78rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="meta-row">
+      <span class="step-indicator">Step <span id="step-num">1</span> of 7</span>
+      <span class="step-dots" id="dots"></span>
+    </div>
+    <h1>SVD, by hand</h1>
+    <p class="subtitle">From a rating matrix to user &amp; movie coordinates — every calculation, exposed.</p>
+  </header>
+  
+  <main id="content"></main>
+  
+  <nav class="controls">
+    <button class="nav" id="prev">← Previous</button>
+    <button class="nav primary" id="next">Next →</button>
+  </nav>
+</div>
+
+<script>
+  // === Data ===
+  const A = [
+    [1, 2, 5, 5],
+    [5, 5, 1, 2],
+    [4, 3, 3, 4],
+    [5, 4, 2, 1],
+    [1, 2, 4, 5],
+  ];
+  const userNames = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve'];
+  const userTags = ['romance', 'action', 'both', 'action', 'romance'];
+  const movieNames = ['Die Hard', 'Mad Max', 'Notting Hill', 'Pretty Woman'];
+  const movieGenres = ['action', 'action', 'romance', 'romance'];
+  
+  const ATA = [
+    [68, 61, 36, 41],
+    [61, 58, 40, 46],
+    [36, 40, 55, 61],
+    [41, 46, 61, 71],
+  ];
+  const eigenvalues = [205.95, 43.66, 1.55, 0.83];
+  const sigma = [14.35, 6.61, 1.25, 0.91];
+  const V = [
+    [-0.50, -0.61, -0.20, -0.58],
+    [-0.50, -0.38,  0.25,  0.74],
+    [-0.47,  0.46, -0.73,  0.18],
+    [-0.53,  0.52,  0.60, -0.30],
+  ];
+  const U = [
+    [-0.45,  0.54],
+    [-0.45, -0.52],
+    [-0.49, -0.01],
+    [-0.42, -0.47],
+    [-0.42,  0.47],
+  ];
+  
+  // Reconstructed A_approx
+  const A_approx = [
+    [1.09, 1.88, 4.67, 5.31],
+    [5.35, 4.56, 1.46, 1.68],
+    [3.58, 3.54, 3.23, 3.69],
+    [4.87, 4.16, 1.34, 1.55],
+    [1.14, 1.82, 4.24, 4.82],
+  ];
+  
+  let currentStep = 0;
+  const TOTAL_STEPS = 7;
+  
+  // === Helpers ===
+  function fmt(n, dec=2) {
+    if (Number.isInteger(n)) return n.toString();
+    return n.toFixed(dec);
+  }
+  function signClass(n) {
+    if (n < 0) return 'neg';
+    if (n > 0) return 'pos';
+    return '';
+  }
+  
+  function renderMatrix(matrix, opts={}) {
+    const {
+      colLabels, rowLabels, cellClass = () => '', clickable = false,
+      onCellClick = null, label = '', showSigns = false
+    } = opts;
+    
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    
+    let html = '<div class="matrix-wrap">';
+    if (label) html += `<div class="card-title" style="margin-bottom:0.6rem">${label}</div>`;
+    html += '<div class="matrix-with-labels">';
+    
+    if (colLabels) {
+      html += '<div class="col-labels">';
+      for (let j = 0; j < cols; j++) {
+        html += `<div class="col-label">${colLabels[j]}</div>`;
+      }
+      html += '</div>';
+    }
+    
+    html += '<div class="bracketed">';
+    for (let i = 0; i < rows; i++) {
+      html += '<div class="matrix-row">';
+      if (rowLabels) {
+        html += `<div class="row-label">${rowLabels[i]}</div>`;
+      }
+      for (let j = 0; j < cols; j++) {
+        const val = matrix[i][j];
+        const cls = cellClass(i, j);
+        const signCls = showSigns ? signClass(val) : '';
+        const clickAttr = clickable ? `data-i="${i}" data-j="${j}"` : '';
+        const clickCls = clickable ? 'clickable' : '';
+        html += `<div class="cell ${cls} ${signCls} ${clickCls}" ${clickAttr}>${fmt(val)}</div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div></div></div>';
+    return html;
+  }
+  
+  // === Step renderers ===
+  function renderStep1() {
+    return `
+      <div class="step">
+        <h2><span class="num">01</span>The rating matrix</h2>
+        <p>Five users have rated four movies on a 1–5 scale. The two action films are listed first, then the two romance films. The "tag" beside each user is just for our reference — the algorithm never sees these labels.</p>
+        
+        <div class="card">
+          <div class="card-title">A — User × Movie ratings</div>
+          ${renderMatrix(A, {
+            colLabels: movieNames,
+            rowLabels: userNames.map((n, i) => `${n} <span style="color:var(--accent);font-size:0.7rem">${userTags[i]}</span>`),
+          })}
+        </div>
+        
+        <p>The genre split is obvious to <em>us</em>. Our task is to show that SVD can find it from the numbers alone, with no labels — and then use that finding to predict missing ratings.</p>
+      </div>
+    `;
+  }
+  
+  function renderStep2() {
+    return `
+      <div class="step">
+        <h2><span class="num">02</span>Form A<sup>T</sup>A</h2>
+        <p>SVD reduces to an eigenvalue problem on <strong>A<sup>T</sup>A</strong>. Since A is 5×4, A<sup>T</sup>A is 4×4 — one row and column per movie.</p>
+        <p>Each entry (i, j) is the <em>dot product of column i and column j of A</em> — that is, how similarly movies i and j are rated across all users.</p>
+        
+        <div class="card">
+          <div class="card-title">Click any cell to see its computation</div>
+          <div id="ata-matrix">
+            ${renderMatrix(ATA, {
+              colLabels: movieNames,
+              rowLabels: movieNames,
+              clickable: true,
+            })}
+          </div>
+          <div class="calc-box" id="ata-calc">
+            <span class="hint">Click a cell above to see the dot product calculation.</span>
+          </div>
+        </div>
+        
+        <p>Notice the pattern: <strong>same-genre pairs</strong> (Die Hard ↔ Mad Max = 61, Notting Hill ↔ Pretty Woman = 61) score high. <strong>Cross-genre pairs</strong> (Die Hard ↔ Notting Hill = 36) score lower. The genre structure is already in this matrix — SVD's job is to extract it cleanly.</p>
+      </div>
+    `;
+  }
+  
+  function renderStep3() {
+    const maxEig = eigenvalues[0];
+    return `
+      <div class="step">
+        <h2><span class="num">03</span>Eigenvalues → singular values</h2>
+        <p>Find the 4 eigenvalues of A<sup>T</sup>A (numerical libraries do this with iterative methods like power iteration or QR iteration). Then take square roots: <strong>σᵢ = √λᵢ</strong>.</p>
+        
+        <div class="card">
+          <div class="card-title">Eigenvalues of A<sup>T</sup>A, descending</div>
+          <div class="bars">
+            ${eigenvalues.map((λ, i) => `
+              <div class="bar-row">
+                <div class="bar-label">λ<sub>${i+1}</sub></div>
+                <div class="bar-track">
+                  <div class="bar-fill ${i >= 2 ? 'muted' : ''}" style="width:${(λ/maxEig*100)}%"></div>
+                </div>
+                <div class="bar-value">${fmt(λ)}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="card-title" style="margin-top:1.2rem">Singular values (square roots)</div>
+          <div class="bars">
+            ${sigma.map((s, i) => `
+              <div class="bar-row">
+                <div class="bar-label">σ<sub>${i+1}</sub></div>
+                <div class="bar-track">
+                  <div class="bar-fill ${i >= 2 ? 'muted' : ''}" style="width:${(s/sigma[0]*100)}%"></div>
+                </div>
+                <div class="bar-value">${fmt(s)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <p><strong>The first two values dominate.</strong> λ₁ and λ₂ together account for ${((eigenvalues[0]+eigenvalues[1])/eigenvalues.reduce((a,b)=>a+b)*100).toFixed(1)}% of the total. The last two are noise. We keep <strong>k = 2</strong>.</p>
+        
+        <div class="equation center">
+          σ = [ <span style="color:var(--accent)">14.35</span>, <span style="color:var(--accent)">6.61</span>, 1.25, 0.91 ]
+        </div>
+      </div>
+    `;
+  }
+  
+  function renderStep4() {
+    return `
+      <div class="step">
+        <h2><span class="num">04</span>Eigenvectors → V</h2>
+        <p>The <em>eigenvectors</em> of A<sup>T</sup>A, sorted by their eigenvalues, are the columns of V. They are the "movie directions" in the latent space.</p>
+        
+        <div class="card">
+          <div class="card-title">V — each column is a latent direction (highlighted: the two we keep)</div>
+          ${renderMatrix(V, {
+            rowLabels: movieNames,
+            colLabels: ['v₁', 'v₂', 'v₃', 'v₄'],
+            cellClass: (i, j) => j < 2 ? '' : 'dim',
+            showSigns: true,
+          })}
+        </div>
+        
+        <p><strong>v₁ (column 1):</strong> all four entries are around −0.5. This direction reflects "overall rating tendency" — a uniform background pattern that's not very informative for personalization.</p>
+        
+        <p><strong>v₂ (column 2):</strong> action movies are <span style="color:var(--negative);font-weight:600">negative</span> (Die Hard −0.61, Mad Max −0.38), romance movies are <span style="color:var(--positive);font-weight:600">positive</span> (Notting Hill +0.46, Pretty Woman +0.52). <em>SVD discovered the genre split.</em> Nobody told it about action vs. romance — it found that direction by following where the rating data varies most.</p>
+      </div>
+    `;
+  }
+  
+  function renderStep5() {
+    return `
+      <div class="step">
+        <h2><span class="num">05</span>Build U from A and V</h2>
+        <p>Once we have V and σ, the user coordinates fall out of a single formula:</p>
+        
+        <div class="equation center">u<sub>i</sub> = (1/σ<sub>i</sub>) · A · v<sub>i</sub></div>
+        
+        <p>In words: each column of U is A times the corresponding column of V, divided by that column's singular value. Each user gets <strong>projected</strong> onto each latent direction.</p>
+        
+        <div class="card">
+          <div class="card-title">Click any user's row to see their U calculation</div>
+          <div id="user-rows" class="user-rows">
+            ${renderMatrix(A, {
+              colLabels: movieNames,
+              rowLabels: userNames,
+            }).replace(/data-i/g, 'data-user').replace(/<div class="matrix-row">/g, (m) => m).replace(/(<div class="matrix-row">)/g, '$1')}
+          </div>
+          <div class="calc-box" id="u-calc">
+            <span class="hint">Click a user above to expand the projection calculation.</span>
+          </div>
+        </div>
+        
+        <p>The result, with each user as a row:</p>
+        
+        <div class="card">
+          <div class="card-title">U — user coordinates in the 2D latent space</div>
+          ${renderMatrix(U, {
+            rowLabels: userNames.map((n, i) => `${n}`),
+            colLabels: ['u₁', 'u₂'],
+            showSigns: true,
+          })}
+        </div>
+        
+        <p>Look at column 2: <strong>romance lovers Alice and Eve are positive; action lovers Bob and Dave are negative; Carol (likes both) is near zero</strong>. The genre axis SVD found in V also separates the users in U — because they live in the same coordinate system.</p>
+      </div>
+    `;
+  }
+  
+  function renderStep6() {
+    return `
+      <div class="step">
+        <h2><span class="num">06</span>Verify by reconstruction</h2>
+        <p>Multiply U Σ V<sup>T</sup> back together. If we kept all 4 dimensions, we'd recover A exactly. With just k = 2, we get an approximation:</p>
+        
+        <div class="card">
+          <div class="card-title">A (original)</div>
+          ${renderMatrix(A, {
+            colLabels: movieNames,
+            rowLabels: userNames,
+          })}
+        </div>
+        
+        <div class="card">
+          <div class="card-title">Â = U Σ V<sup>T</sup> (rank-2 reconstruction)</div>
+          ${renderMatrix(A_approx, {
+            colLabels: movieNames,
+            rowLabels: userNames,
+          })}
+        </div>
+        
+        <p>The reconstruction is close — the largest single error is ${(() => {
+          let mx = 0;
+          for (let i=0; i<5; i++) for (let j=0; j<4; j++) {
+            mx = Math.max(mx, Math.abs(A[i][j] - A_approx[i][j]));
+          }
+          return mx.toFixed(2);
+        })()}, and most are well under 0.5 on a 1–5 scale. <strong>The full 5×4 matrix has been compressed into a 2-dimensional story</strong>, and almost nothing important was lost.</p>
+        
+        <p><em>This is also where the recommendation magic comes from</em>: in real systems some entries of A are missing. The factorization gets fit using only the observed entries, but the formula U Σ V<sup>T</sup> happily produces a value for every cell — including the ones nobody has rated yet.</p>
+      </div>
+    `;
+  }
+  
+  function renderStep7() {
+    return `
+      <div class="step">
+        <h2><span class="num">07</span>Make a prediction</h2>
+        <p>The whole point. Pick a user and a movie, and we predict the rating from a single dot product:</p>
+        
+        <div class="equation center">prediction = (u<sub>user</sub> · σ) · v<sub>movie</sub></div>
+        
+        <div class="card">
+          <div class="selectors">
+            <div class="selector-group">
+              <label>User</label>
+              <select id="pick-user">
+                ${userNames.map((n, i) => `<option value="${i}">${n}</option>`).join('')}
+              </select>
+            </div>
+            <div class="selector-group">
+              <label>Movie</label>
+              <select id="pick-movie">
+                ${movieNames.map((n, i) => `<option value="${i}">${n}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          
+          <div class="calc-box" id="pred-calc"></div>
+          <div class="prediction-result" id="pred-result"></div>
+        </div>
+        
+        <p>That's the engine. Every user has 2 numbers, every movie has 2 numbers, and a prediction is a 4-multiply dot product. <strong>This scales</strong> — replace 5 users with 5 million, 4 movies with 50,000, and the same arithmetic still works. That's why matrix factorization sits at the core of so many real-world recommender systems.</p>
+      </div>
+    `;
+  }
+  
+  const STEPS = [renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6, renderStep7];
+  
+  // === Step interactivity ===
+  function attachStep2() {
+    const cells = document.querySelectorAll('#ata-matrix .cell.clickable');
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const i = +cell.dataset.i;
+        const j = +cell.dataset.j;
+        cells.forEach(c => c.classList.remove('active'));
+        cell.classList.add('active');
+        renderATACalc(i, j);
+      });
+    });
+    // Default highlight
+    const defaultCell = document.querySelector('#ata-matrix .cell.clickable[data-i="0"][data-j="1"]');
+    if (defaultCell) {
+      defaultCell.classList.add('active');
+      renderATACalc(0, 1);
+    }
+  }
+  
+  function renderATACalc(i, j) {
+    const colI = A.map(row => row[i]);
+    const colJ = A.map(row => row[j]);
+    const products = colI.map((v, k) => v * colJ[k]);
+    const sum = products.reduce((a, b) => a + b);
+    
+    const html = `
+      <div class="calc-line"><span class="calc-tag">column i</span> ${movieNames[i]} ratings: [${colI.join(', ')}]</div>
+      <div class="calc-line"><span class="calc-tag">column j</span> ${movieNames[j]} ratings: [${colJ.join(', ')}]</div>
+      <div class="calc-line"><span class="calc-tag">products</span> ${colI.map((v, k) => `${v}×${colJ[k]}`).join(' + ')}</div>
+      <div class="calc-line"><span class="calc-tag">= </span> ${products.join(' + ')} = <span class="calc-result">${sum}</span></div>
+    `;
+    document.getElementById('ata-calc').innerHTML = html;
+  }
+  
+  function attachStep5() {
+    const rows = document.querySelectorAll('#user-rows .matrix-row');
+    rows.forEach((row, idx) => {
+      row.addEventListener('click', () => {
+        rows.forEach(r => r.classList.remove('active'));
+        row.classList.add('active');
+        renderUCalc(idx);
+      });
+    });
+    if (rows[0]) {
+      rows[0].classList.add('active');
+      renderUCalc(0);
+    }
+  }
+  
+  function renderUCalc(userIdx) {
+    const userRow = A[userIdx];
+    const v1 = V.map(row => row[0]);
+    const v2 = V.map(row => row[1]);
+    
+    const dot1 = userRow.reduce((s, x, k) => s + x * v1[k], 0);
+    const dot2 = userRow.reduce((s, x, k) => s + x * v2[k], 0);
+    const u1 = dot1 / sigma[0];
+    const u2 = dot2 / sigma[1];
+    
+    const renderProducts = (vec) => userRow.map((x, k) => {
+      const p = x * vec[k];
+      const cls = p >= 0 ? 'pos-prod' : 'neg-prod';
+      return `<span class="term ${cls}">${x}×(${fmt(vec[k])})</span>`;
+    }).join(' + ');
+    
+    const html = `
+      <div style="margin-bottom:0.7rem"><strong>${userNames[userIdx]}'s row:</strong> [${userRow.join(', ')}]</div>
+      
+      <div style="margin-bottom:0.5rem;color:var(--ink)"><strong>Dimension 1 (u₁):</strong></div>
+      <div class="calc-line"><span class="calc-tag">A · v₁</span> = ${renderProducts(v1)}</div>
+      <div class="calc-line"><span class="calc-tag">= </span> ${fmt(dot1)}</div>
+      <div class="calc-line"><span class="calc-tag">÷ σ₁</span> ${fmt(dot1)} / ${sigma[0]} = <span class="calc-result">${fmt(u1)}</span></div>
+      
+      <div style="margin:0.9rem 0 0.5rem;color:var(--ink)"><strong>Dimension 2 (u₂):</strong></div>
+      <div class="calc-line"><span class="calc-tag">A · v₂</span> = ${renderProducts(v2)}</div>
+      <div class="calc-line"><span class="calc-tag">= </span> ${fmt(dot2)}</div>
+      <div class="calc-line"><span class="calc-tag">÷ σ₂</span> ${fmt(dot2)} / ${sigma[1]} = <span class="calc-result">${fmt(u2)}</span></div>
+    `;
+    document.getElementById('u-calc').innerHTML = html;
+  }
+  
+  function attachStep7() {
+    const userSel = document.getElementById('pick-user');
+    const movieSel = document.getElementById('pick-movie');
+    const update = () => renderPrediction(+userSel.value, +movieSel.value);
+    userSel.addEventListener('change', update);
+    movieSel.addEventListener('change', update);
+    update();
+  }
+  
+  function renderPrediction(userIdx, movieIdx) {
+    const u = U[userIdx];
+    const v_col = [V[movieIdx][0], V[movieIdx][1]]; // first 2 components
+    
+    // Scale u by sigma
+    const uScaled = [u[0] * sigma[0], u[1] * sigma[1]];
+    const term1 = uScaled[0] * v_col[0];
+    const term2 = uScaled[1] * v_col[1];
+    const prediction = term1 + term2;
+    const actual = A[userIdx][movieIdx];
+    const close = Math.abs(prediction - actual) < 0.7;
+    
+    const calcHtml = `
+      <div class="calc-line"><span class="calc-tag">u·σ</span> [${fmt(u[0])}×${sigma[0]}, ${fmt(u[1])}×${sigma[1]}] = [${fmt(uScaled[0])}, ${fmt(uScaled[1])}]</div>
+      <div class="calc-line"><span class="calc-tag">v</span> [${fmt(v_col[0])}, ${fmt(v_col[1])}]</div>
+      <div class="calc-line"><span class="calc-tag">·</span> (${fmt(uScaled[0])})×(${fmt(v_col[0])}) + (${fmt(uScaled[1])})×(${fmt(v_col[1])})</div>
+      <div class="calc-line"><span class="calc-tag">=</span> ${fmt(term1)} + ${fmt(term2)} = <span class="calc-result">${fmt(prediction)}</span></div>
+    `;
+    document.getElementById('pred-calc').innerHTML = calcHtml;
+    
+    document.getElementById('pred-result').innerHTML = `
+      <div class="label">${userNames[userIdx]} → ${movieNames[movieIdx]} predicted</div>
+      <div class="number">${fmt(prediction)}</div>
+      <div class="actual">actual rating: ${actual} ${close ? '<span class="check">✓</span>' : ''}</div>
+    `;
+  }
+  
+  // === Render ===
+  function render() {
+    document.getElementById('content').innerHTML = STEPS[currentStep]();
+    document.getElementById('step-num').textContent = currentStep + 1;
+    document.getElementById('prev').disabled = currentStep === 0;
+    const next = document.getElementById('next');
+    next.disabled = currentStep === TOTAL_STEPS - 1;
+    next.textContent = currentStep === TOTAL_STEPS - 1 ? 'Complete' : 'Next →';
+    
+    // Render dots
+    const dots = document.getElementById('dots');
+    dots.innerHTML = '';
+    for (let i = 0; i < TOTAL_STEPS; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'dot' + (i === currentStep ? ' active' : (i < currentStep ? ' visited' : ''));
+      dot.addEventListener('click', () => { currentStep = i; render(); });
+      dots.appendChild(dot);
+    }
+    
+    // Attach step-specific interactivity
+    if (currentStep === 1) attachStep2();
+    if (currentStep === 4) attachStep5();
+    if (currentStep === 6) attachStep7();
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  
+  document.getElementById('prev').addEventListener('click', () => {
+    if (currentStep > 0) { currentStep--; render(); }
+  });
+  document.getElementById('next').addEventListener('click', () => {
+    if (currentStep < TOTAL_STEPS - 1) { currentStep++; render(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' && currentStep < TOTAL_STEPS - 1) { currentStep++; render(); }
+    if (e.key === 'ArrowLeft' && currentStep > 0) { currentStep--; render(); }
+  });
+  
+  render();
+</script>
+</body>
+</html>

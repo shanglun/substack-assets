@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>An Honest Guide to Recommendation System Evaluation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f4ede0;
+    --bg-soft: #faf6ed;
+    --bg-paper: #fbf8f1;
+    --ink: #1a1410;
+    --ink-soft: #4a3f35;
+    --muted: #8a7d6f;
+    --rule: #d8cdb5;
+    --rule-soft: #e8dfc8;
+    --vermillion: #c4452d;
+    --vermillion-soft: #e89e8c;
+    --teal: #1e4544;
+    --teal-soft: #4a7170;
+    --mustard: #b88a1c;
+    --mustard-soft: #e8c970;
+    --sage: #6b8865;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(196,69,45,0.04) 0%, transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(30,69,68,0.04) 0%, transparent 40%);
+    min-height: 100vh;
+  }
+
+  /* ---------- Layout ---------- */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+  .narrow { max-width: 720px; margin: 0 auto; padding: 0 32px; }
+
+  /* ---------- Hero / Masthead ---------- */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 28px 0 16px;
+    margin-bottom: 40px;
+  }
+  .masthead-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .masthead-row .dot { color: var(--vermillion); }
+
+  .hero {
+    padding: 60px 0 80px;
+    border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+  .hero h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    margin-bottom: 32px;
+    color: var(--ink);
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--vermillion);
+    font-feature-settings: "ss01";
+  }
+  .hero-sub {
+    font-family: var(--serif);
+    font-size: 22px;
+    line-height: 1.45;
+    color: var(--ink-soft);
+    max-width: 680px;
+    font-weight: 350;
+  }
+  .hero-meta {
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--rule);
+    padding-top: 20px;
+  }
+  .hero-meta strong {
+    display: block; font-family: var(--serif); font-style: italic;
+    font-size: 18px; color: var(--ink); text-transform: none;
+    letter-spacing: 0; font-weight: 400; margin-bottom: 4px;
+  }
+
+  /* ---------- Table of Contents ---------- */
+  .toc {
+    margin: 48px 0 64px;
+    padding: 32px;
+    border: 1px solid var(--rule);
+    background: var(--bg-paper);
+  }
+  .toc-title {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--vermillion); margin-bottom: 18px;
+  }
+  .toc ol {
+    list-style: none;
+    columns: 2;
+    column-gap: 48px;
+  }
+  .toc li {
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--rule);
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--ink); text-decoration: none;
+    font-family: var(--serif); font-size: 17px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--vermillion); }
+  .toc-num { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* ---------- Section ---------- */
+  section { padding: 60px 0; border-bottom: 1px solid var(--rule); }
+
+  .section-header {
+    display: flex; align-items: baseline; gap: 24px;
+    margin-bottom: 32px;
+  }
+  .section-num {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 56px;
+    font-weight: 300;
+    color: var(--vermillion);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-family: var(--serif);
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .section-kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--vermillion);
+    margin-bottom: 8px;
+  }
+
+  p { margin-bottom: 20px; max-width: 680px; }
+  p.lead { font-size: 19px; line-height: 1.55; }
+  p.lead::first-letter {
+    font-family: var(--serif);
+    font-size: 64px;
+    font-weight: 400;
+    float: left;
+    line-height: 0.85;
+    margin: 6px 8px 0 0;
+    color: var(--vermillion);
+  }
+  strong { font-weight: 600; color: var(--ink); }
+  em { font-style: italic; }
+  .h3 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 500;
+    margin: 40px 0 16px;
+    letter-spacing: -0.005em;
+  }
+  .h4 {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 400;
+    margin: 28px 0 12px;
+    color: var(--ink);
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--bg-paper);
+    padding: 1px 6px;
+    border: 1px solid var(--rule-soft);
+  }
+
+  /* ---------- Pull quote / sidenote ---------- */
+  .sidenote {
+    border-left: 3px solid var(--vermillion);
+    padding: 4px 0 4px 20px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-soft);
+    margin: 28px 0;
+    max-width: 600px;
+  }
+
+  /* ---------- Two-column compare ---------- */
+  .two-worlds {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0; margin: 32px 0;
+    border: 1px solid var(--ink);
+  }
+  .world {
+    padding: 32px;
+    position: relative;
+  }
+  .world:first-child {
+    background: var(--bg-paper);
+    border-right: 1px solid var(--ink);
+  }
+  .world:last-child {
+    background: var(--ink);
+    color: var(--bg-paper);
+  }
+  .world-tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase; opacity: 0.7; margin-bottom: 12px;
+  }
+  .world h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 28px;
+    line-height: 1.1; margin-bottom: 16px;
+  }
+  .world p { font-size: 15px; max-width: 100%; }
+  .world ul { margin-top: 12px; list-style: none; }
+  .world li {
+    font-family: var(--mono); font-size: 12px; padding: 4px 0;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border-top: 1px dotted currentColor;
+  }
+  .world li:first-child { border-top: 0; }
+
+  /* ---------- Interactive Widget Frame ---------- */
+  .widget {
+    background: var(--bg-paper);
+    border: 1px solid var(--ink);
+    margin: 40px 0;
+    position: relative;
+  }
+  .widget-header {
+    background: var(--ink);
+    color: var(--bg-paper);
+    padding: 14px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+  }
+  .widget-header .widget-tag { color: var(--mustard-soft); }
+  .widget-body { padding: 32px; }
+  .widget-title {
+    font-family: var(--serif); font-size: 24px; font-weight: 500;
+    margin-bottom: 8px; color: var(--ink);
+  }
+  .widget-desc { color: var(--ink-soft); font-size: 14px; max-width: 560px; }
+
+  /* ---------- MAE/RMSE Calculator ---------- */
+  .calc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 24px;
+  }
+  .pred-rows { display: flex; flex-direction: column; gap: 14px; }
+  .pred-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 60px;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--rule);
+  }
+  .pred-row:last-child { border-bottom: none; }
+  .pred-label {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .slider-group { display: flex; flex-direction: column; gap: 4px; }
+  .slider-group label {
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.15em;
+  }
+  .slider-group input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 4px;
+    background: var(--rule); outline: none; border-radius: 2px;
+  }
+  .slider-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--vermillion); cursor: pointer; border: 2px solid var(--bg-paper);
+    box-shadow: 0 0 0 1px var(--vermillion);
+  }
+  .slider-group input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--vermillion); cursor: pointer; border: 2px solid var(--bg-paper);
+  }
+  .pred-row.actual .slider-group input[type="range"]::-webkit-slider-thumb {
+    background: var(--teal); box-shadow: 0 0 0 1px var(--teal);
+  }
+  .pred-row.actual .slider-group input[type="range"]::-moz-range-thumb {
+    background: var(--teal);
+  }
+  .err-display {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    text-align: right; color: var(--ink);
+    padding: 4px 8px; background: var(--bg);
+  }
+  .err-display.big { color: var(--vermillion); font-weight: 700; }
+
+  .metric-display {
+    background: var(--ink); color: var(--bg-paper);
+    padding: 28px; display: flex; flex-direction: column; gap: 20px;
+  }
+  .metric-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 16px;
+  }
+  .metric-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .metric-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--mustard-soft);
+  }
+  .metric-value {
+    font-family: var(--serif); font-size: 40px; font-weight: 300;
+    color: var(--bg-paper); line-height: 1;
+  }
+  .metric-formula {
+    font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.5);
+    margin-top: 4px;
+  }
+  .metric-insight {
+    font-family: var(--serif); font-style: italic; font-size: 14px;
+    line-height: 1.4; color: var(--mustard-soft); padding-top: 8px;
+  }
+
+  /* ---------- Outlier Story ---------- */
+  .outlier-demo {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0; border: 1px solid var(--ink);
+    margin: 32px 0;
+  }
+  .scenario { padding: 24px; }
+  .scenario.a { border-right: 1px solid var(--ink); background: var(--bg-paper); }
+  .scenario.b { background: var(--bg-paper); }
+  .scenario h4 {
+    font-family: var(--serif); font-size: 20px; margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .scenario .sub {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.15em; color: var(--muted); margin-bottom: 16px;
+  }
+  .err-bars { display: flex; gap: 4px; height: 80px; align-items: flex-end; margin: 16px 0; }
+  .err-bar {
+    flex: 1; background: var(--vermillion);
+    min-height: 4px; position: relative;
+  }
+  .err-bar.big { background: var(--ink); }
+  .scenario .stats {
+    display: flex; gap: 16px; margin-top: 16px;
+    padding-top: 16px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 13px;
+  }
+  .scenario .stats span:first-child { color: var(--muted); }
+  .scenario .stats strong { color: var(--ink); font-weight: 700; }
+
+  /* ---------- Confusion Matrix ---------- */
+  .confusion-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px; }
+  .confusion-grid {
+    display: grid;
+    grid-template-columns: 100px 1fr 1fr;
+    grid-template-rows: 36px 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--ink);
+  }
+  .conf-cell {
+    padding: 16px;
+    border: 1px solid var(--ink);
+    margin: -1px 0 0 -1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; flex-direction: column; justify-content: center;
+    min-height: 110px;
+  }
+  .conf-cell.label {
+    background: var(--ink); color: var(--bg-paper);
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    cursor: default; min-height: 36px;
+    align-items: center; text-align: center;
+  }
+  .conf-cell.row-label {
+    background: var(--bg); color: var(--ink-soft);
+    text-align: right; padding-right: 16px; align-items: flex-end;
+    cursor: default; font-size: 11px;
+  }
+  .conf-cell.empty { background: var(--ink); cursor: default; }
+  .conf-cell.cell {
+    background: var(--bg-paper);
+  }
+  .conf-cell.cell:hover { background: var(--mustard-soft); }
+  .conf-cell.cell.active { background: var(--vermillion); color: var(--bg-paper); }
+  .conf-cell.cell.active .conf-name { color: var(--bg-paper); }
+  .conf-cell.cell.active .conf-emoji { color: var(--bg-paper); }
+  .conf-name {
+    font-family: var(--serif); font-size: 17px;
+    font-weight: 500; margin-bottom: 4px;
+  }
+  .conf-emoji { font-size: 22px; margin-bottom: 6px; }
+  .conf-desc {
+    font-size: 11px; line-height: 1.3; color: var(--ink-soft);
+  }
+  .conf-cell.active .conf-desc { color: rgba(255,255,255,0.85); }
+
+  .conf-explainer {
+    background: var(--ink); color: var(--bg-paper);
+    padding: 24px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .conf-explainer h5 {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.15em; color: var(--mustard-soft);
+  }
+  .conf-explainer p {
+    color: var(--bg-paper); font-size: 14px; line-height: 1.5;
+    max-width: 100%;
+  }
+  .conf-explainer .scenario-text {
+    font-family: var(--serif); font-style: italic; font-size: 16px;
+    border-left: 2px solid var(--vermillion); padding-left: 14px;
+  }
+
+  /* ---------- Precision/Recall Slider ---------- */
+  .pr-demo {
+    display: grid; grid-template-columns: 1.4fr 1fr;
+    gap: 32px; align-items: start;
+  }
+  .pr-items {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .pr-item {
+    display: grid; grid-template-columns: 32px 1fr 100px 60px;
+    gap: 12px; align-items: center; padding: 8px 12px;
+    background: var(--bg-paper); border: 1px solid var(--rule);
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+  .pr-item.recommended {
+    background: var(--mustard-soft);
+    border-color: var(--mustard);
+  }
+  .pr-item.relevant { font-weight: 500; }
+  .pr-item .pr-rank {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .pr-item .pr-relevance {
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    text-align: right;
+  }
+  .pr-item .pr-relevance.yes { color: var(--teal); }
+  .pr-item .pr-relevance.no { color: var(--muted); }
+  .pr-item .pr-score {
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+  }
+
+  .pr-controls {
+    background: var(--ink); color: var(--bg-paper);
+    padding: 24px;
+  }
+  .pr-controls label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--mustard-soft); display: block; margin-bottom: 8px;
+  }
+  .pr-controls input[type="range"] {
+    width: 100%; -webkit-appearance: none; height: 4px;
+    background: rgba(255,255,255,0.2); outline: none; margin-bottom: 24px;
+  }
+  .pr-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--mustard); cursor: pointer;
+  }
+  .pr-controls input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--mustard); cursor: pointer; border: none;
+  }
+  .pr-stats { display: flex; flex-direction: column; gap: 12px; }
+  .pr-stat { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .pr-stat:last-child { border-bottom: none; }
+  .pr-stat-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+  .pr-stat-val { font-family: var(--serif); font-size: 24px; font-weight: 400; }
+  .pr-stat-val.precision { color: var(--mustard-soft); }
+  .pr-stat-val.recall { color: var(--vermillion-soft); }
+  .pr-stat-val.f1 { color: var(--bg-paper); }
+
+  /* ---------- Top-K Visualizer ---------- */
+  .topk-list {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .topk-row {
+    display: grid; grid-template-columns: 36px 24px 1fr 80px;
+    gap: 12px; align-items: center;
+    padding: 6px 12px;
+    background: var(--bg-paper); border: 1px solid var(--rule);
+    font-size: 13px; transition: all 0.2s;
+  }
+  .topk-row.in-top {
+    border-left: 4px solid var(--vermillion);
+    background: var(--bg);
+  }
+  .topk-row .rank {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .topk-row .marker {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--rule);
+  }
+  .topk-row.relevant .marker { background: var(--teal); border-color: var(--teal); }
+  .topk-row .item-name { font-family: var(--serif); }
+  .topk-row .score { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: right; }
+  .topk-cutoff {
+    height: 1px; background: var(--vermillion);
+    position: relative; margin: 4px 0;
+  }
+  .topk-cutoff::after {
+    content: 'TOP-K CUTOFF';
+    position: absolute; right: 0; top: -10px;
+    font-family: var(--mono); font-size: 9px;
+    color: var(--vermillion); background: var(--bg-paper);
+    padding: 2px 8px; letter-spacing: 0.15em;
+  }
+
+  /* ---------- NDCG / Position discount ---------- */
+  .ndcg-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px; }
+  .ranking-compare { display: flex; flex-direction: column; gap: 16px; }
+  .ranking {
+    border: 1px solid var(--rule);
+    background: var(--bg-paper); padding: 16px;
+  }
+  .ranking-title {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--vermillion); margin-bottom: 12px;
+  }
+  .ranking-row {
+    display: grid; grid-template-columns: 28px 1fr 60px;
+    gap: 8px; align-items: center; padding: 6px 0;
+    border-bottom: 1px dotted var(--rule);
+    font-size: 13px;
+  }
+  .ranking-row:last-child { border-bottom: none; }
+  .ranking-row .relevance-bar {
+    background: var(--rule); height: 8px; border-radius: 2px;
+    overflow: hidden; position: relative;
+  }
+  .ranking-row .relevance-fill {
+    height: 100%; background: linear-gradient(to right, var(--vermillion), var(--mustard));
+  }
+  .ranking-row .gain {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-soft); text-align: right;
+  }
+  .ranking-totals {
+    display: flex; justify-content: space-around;
+    padding: 12px; background: var(--ink); color: var(--bg-paper);
+    margin-top: 12px;
+  }
+  .ranking-totals div { text-align: center; }
+  .ranking-totals .label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--mustard-soft); margin-bottom: 4px;
+  }
+  .ranking-totals .val {
+    font-family: var(--serif); font-size: 20px;
+  }
+
+  /* ---------- Decision Guide ---------- */
+  .decision-guide {
+    background: var(--bg-paper);
+    border: 1px solid var(--ink);
+    padding: 32px;
+    margin: 32px 0;
+  }
+  .decision-step { display: none; }
+  .decision-step.active { display: block; }
+  .decision-question {
+    font-family: var(--serif); font-size: 28px; font-weight: 400;
+    line-height: 1.2; margin-bottom: 24px; color: var(--ink);
+  }
+  .decision-options { display: flex; flex-direction: column; gap: 8px; }
+  .decision-option {
+    display: block; width: 100%; text-align: left;
+    background: var(--bg); border: 1px solid var(--rule);
+    padding: 16px 20px; cursor: pointer;
+    font-family: var(--serif); font-size: 17px; color: var(--ink);
+    transition: all 0.2s;
+    font-weight: 400;
+  }
+  .decision-option:hover {
+    background: var(--ink); color: var(--bg-paper);
+    border-color: var(--ink);
+  }
+  .decision-result {
+    background: var(--ink); color: var(--bg-paper);
+    padding: 24px; margin-top: 24px;
+  }
+  .decision-result .result-label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--mustard-soft); margin-bottom: 8px;
+  }
+  .decision-result .result-metric {
+    font-family: var(--serif); font-size: 36px; font-weight: 400;
+    margin-bottom: 12px;
+  }
+  .decision-result .result-why {
+    font-size: 14px; line-height: 1.5;
+    color: rgba(255,255,255,0.85); max-width: 100%;
+  }
+  .decision-restart {
+    margin-top: 16px; background: transparent; border: 1px solid var(--mustard-soft);
+    color: var(--mustard-soft); padding: 8px 16px; cursor: pointer;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .decision-restart:hover { background: var(--mustard); color: var(--ink); border-color: var(--mustard); }
+
+  /* ---------- Cheat Sheet ---------- */
+  .filter-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
+  }
+  .filter-btn {
+    background: transparent; border: 1px solid var(--rule);
+    padding: 8px 14px; cursor: pointer;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-soft); transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .filter-btn.active {
+    background: var(--ink); color: var(--bg-paper); border-color: var(--ink);
+  }
+
+  .cheat-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .cheat-card {
+    background: var(--bg-paper); border: 1px solid var(--rule);
+    padding: 20px; transition: all 0.2s;
+  }
+  .cheat-card:hover {
+    border-color: var(--ink);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .cheat-card.hidden { display: none; }
+  .cheat-card .name {
+    font-family: var(--serif); font-size: 22px; font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .cheat-card .world-tag {
+    display: inline-block; font-family: var(--mono); font-size: 9px;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    padding: 3px 8px; margin-bottom: 12px;
+  }
+  .cheat-card .world-tag.regression { background: var(--vermillion); color: var(--bg-paper); }
+  .cheat-card .world-tag.classification { background: var(--teal); color: var(--bg-paper); }
+  .cheat-card .world-tag.ranking { background: var(--mustard); color: var(--ink); }
+  .cheat-card .world-tag.beyond { background: var(--sage); color: var(--bg-paper); }
+  .cheat-card .world-tag.online { background: var(--ink); color: var(--bg-paper); }
+  .cheat-card .row {
+    display: flex; gap: 8px; padding: 6px 0;
+    border-top: 1px dotted var(--rule);
+    font-size: 12px;
+  }
+  .cheat-card .row:first-of-type { border-top: 0; padding-top: 12px; }
+  .cheat-card .row .key {
+    font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); flex-shrink: 0; width: 70px;
+  }
+  .cheat-card .row .val { color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
+
+  /* ---------- Ensemble section ---------- */
+  .reading-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--ink); margin: 32px 0;
+  }
+  .reading {
+    padding: 28px;
+  }
+  .reading.r1 { background: var(--bg-paper); border-right: 1px solid var(--ink); }
+  .reading.r2 { background: var(--bg); }
+  .reading-num {
+    font-family: var(--serif); font-style: italic; font-size: 56px;
+    color: var(--vermillion); line-height: 1; margin-bottom: 8px;
+  }
+  .reading h4 {
+    font-family: var(--serif); font-size: 22px; font-weight: 500;
+    margin-bottom: 12px; line-height: 1.2;
+  }
+  .reading p { font-size: 14px; max-width: 100%; }
+  .verdict {
+    background: var(--ink); color: var(--bg-paper);
+    padding: 16px; margin-top: 20px;
+    font-family: var(--serif); font-style: italic;
+    font-size: 14px;
+  }
+  .verdict-label {
+    font-family: var(--mono); font-style: normal;
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--mustard-soft); display: block; margin-bottom: 6px;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    padding: 60px 0 40px;
+    border-top: 2px solid var(--ink);
+    margin-top: 40px;
+    background: var(--bg);
+  }
+  footer .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  footer .closing {
+    font-family: var(--serif); font-style: italic;
+    font-size: 22px; line-height: 1.4;
+    max-width: 600px; margin-bottom: 32px;
+    color: var(--ink);
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 768px) {
+    .hero-meta { grid-template-columns: 1fr 1fr; }
+    .toc ol { columns: 1; }
+    .two-worlds, .calc-grid, .confusion-wrapper, .pr-demo, .ndcg-wrapper, .reading-grid, .outlier-demo {
+      grid-template-columns: 1fr;
+    }
+    .world:first-child, .scenario.a, .reading.r1 { border-right: 0; border-bottom: 1px solid var(--ink); }
+    .section-header { flex-direction: column; gap: 8px; }
+    .pred-row { grid-template-columns: 60px 1fr 1fr 50px; gap: 8px; }
+    .topk-row { grid-template-columns: 28px 20px 1fr 60px; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header class="masthead">
+    <div class="masthead-row">
+      <span>Vol. 01 <span class="dot">●</span> Supplementary</span>
+      <span>An Honest Field Guide</span>
+      <span>For the Curious Practitioner</span>
+    </div>
+  </header>
+
+  <div class="hero">
+    <h1>How to <em>actually</em><br/>evaluate a recommender.</h1>
+    <p class="hero-sub">
+      The textbook gives you four metrics. Production gives you fifteen.
+      This is a guide to the gap — what to measure, what to ignore,
+      and why the choice matters more than the algorithm.
+    </p>
+    <div class="hero-meta">
+      <div><strong>11</strong>Sections</div>
+      <div><strong>6</strong>Interactive widgets</div>
+      <div><strong>~25 min</strong>Reading time</div>
+      <div><strong>Coffee</strong>Optional but encouraged</div>
+    </div>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#s1"><span>The Two Worlds</span><span class="toc-num">01</span></a></li>
+      <li><a href="#s2"><span>MAE & RMSE — A Calculator</span><span class="toc-num">02</span></a></li>
+      <li><a href="#s3"><span>Why RMSE Punishes Outliers</span><span class="toc-num">03</span></a></li>
+      <li><a href="#s4"><span>The Confusion Matrix</span><span class="toc-num">04</span></a></li>
+      <li><a href="#s5"><span>Precision–Recall Trade-off</span><span class="toc-num">05</span></a></li>
+      <li><a href="#s6"><span>Top-K Metrics</span><span class="toc-num">06</span></a></li>
+      <li><a href="#s7"><span>Ranking Metrics & NDCG</span><span class="toc-num">07</span></a></li>
+      <li><a href="#s8"><span>Beyond Accuracy</span><span class="toc-num">08</span></a></li>
+      <li><a href="#s9"><span>Decision Guide</span><span class="toc-num">09</span></a></li>
+      <li><a href="#s10"><span>The Ensemble Question</span><span class="toc-num">10</span></a></li>
+      <li><a href="#s11"><span>Cheat Sheet</span><span class="toc-num">11</span></a></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ============= SECTION 1 ============= -->
+<section id="s1">
+  <div class="container">
+    <div class="section-kicker">Section One</div>
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <h2>The two worlds of<br/>recommendation evaluation</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Before picking a metric, you need to know what kind of recommender you're building.
+      Most people skip this step and pick metrics that don't match their actual problem.
+      The slide deck conflates them. Let's separate them clearly.
+    </p>
+  </div>
+  <div class="container">
+    <div class="two-worlds">
+      <div class="world">
+        <div class="world-tag">World 01</div>
+        <h3>Rating Prediction</h3>
+        <p>You want to estimate the <em>number</em> a user would give an item. Like Netflix's old 1–5 stars, or your books dataset predicting a 1–10 rating. You care how close your guess is to the truth.</p>
+        <ul>
+          <li>→ MAE</li>
+          <li>→ RMSE</li>
+          <li>→ NMAE</li>
+        </ul>
+      </div>
+      <div class="world">
+        <div class="world-tag">World 02</div>
+        <h3>Top-N Recommendation</h3>
+        <p>You give the user a ranked list. Like Spotify's Discover Weekly, or Amazon's "you might also like." You don't care about predicted scores — you care about <em>which items</em> appear and <em>where</em>.</p>
+        <ul>
+          <li>→ Precision@K · Recall@K</li>
+          <li>→ MAP · NDCG · MRR</li>
+          <li>→ Diversity · Coverage</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="sidenote">Most modern recommenders live in World 02 — but most tutorials over-emphasize World 01 because the math is tidier. The slide deck you have is no exception.</p>
+  </div>
+</section>
+
+<!-- ============= SECTION 2 ============= -->
+<section id="s2">
+  <div class="container">
+    <div class="section-kicker">Section Two</div>
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <h2>Mean Absolute Error vs<br/>Root Mean Square Error</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Both measure how far your predictions are from the truth. Both produce a single number where
+      lower is better. The difference is in <em>how angry they get</em> at large mistakes.
+    </p>
+
+    <div class="h4">MAE — Mean Absolute Error.</div>
+    <p>Take each prediction's error, ignore the sign, average them. That's it. It's exactly what it sounds like — the average size of your mistakes. Same units as the rating, immediately interpretable: "I'm off by 1.1 stars."</p>
+
+    <div class="h4">RMSE — Root Mean Square Error.</div>
+    <p>Same thing, but <em>square</em> the errors before averaging, then take the square root at the end. The squaring is the entire point — it makes one big error count for far more than several small ones. If MAE is the average wrongness, RMSE is the average wrongness with a grudge.</p>
+
+    <p>Below: a tiny calculator. Drag the sliders to make predictions for five books, and watch both metrics react.</p>
+  </div>
+
+  <div class="container">
+    <div class="widget">
+      <div class="widget-header">
+        <span>Widget 01 — Live Calculator</span>
+        <span class="widget-tag">drag the sliders</span>
+      </div>
+      <div class="widget-body">
+        <div class="widget-title">Predict five book ratings</div>
+        <div class="widget-desc">The red sliders are your predictions. The green sliders are the user's actual ratings. Each row shows the absolute error and squared error. The big black panel computes MAE and RMSE in real time.</div>
+
+        <div class="calc-grid">
+          <div class="pred-rows" id="pred-rows">
+            <!-- populated by JS -->
+          </div>
+
+          <div class="metric-display">
+            <div class="metric-row">
+              <div>
+                <div class="metric-label">MAE</div>
+                <div class="metric-value" id="mae-val">—</div>
+                <div class="metric-formula">Σ|error| / n</div>
+              </div>
+            </div>
+            <div class="metric-row">
+              <div>
+                <div class="metric-label">RMSE</div>
+                <div class="metric-value" id="rmse-val">—</div>
+                <div class="metric-formula">√(Σ error² / n)</div>
+              </div>
+            </div>
+            <div class="metric-row">
+              <div>
+                <div class="metric-label">RMSE − MAE</div>
+                <div class="metric-value" id="gap-val">—</div>
+                <div class="metric-formula">error variance signal</div>
+              </div>
+            </div>
+            <div class="metric-insight" id="insight">Move the sliders to begin.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="narrow">
+    <p class="sidenote">Try this: make four predictions perfect, and one off by 5. Notice how MAE stays modest (it's averaged out) but RMSE shoots up. That single big error is what RMSE is designed to flag.</p>
+  </div>
+</section>
+
+<!-- ============= SECTION 3 ============= -->
+<section id="s3">
+  <div class="container">
+    <div class="section-kicker">Section Three</div>
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <h2>The story of two<br/>recommenders</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Imagine two recommendation systems making predictions on the same ten books.
+      Both have the same MAE — exactly 1.0. But one of them has a problem.
+    </p>
+  </div>
+
+  <div class="container">
+    <div class="outlier-demo">
+      <div class="scenario a">
+        <h4>Recommender A</h4>
+        <div class="sub">Ten small mistakes</div>
+        <p style="font-size: 14px;">Off by exactly 1 on every prediction. Steady, predictable, mediocre.</p>
+        <div class="err-bars">
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+          <div class="err-bar" style="height: 10%"></div>
+        </div>
+        <div class="stats">
+          <span>MAE</span><strong>1.00</strong>
+          <span>RMSE</span><strong>1.00</strong>
+        </div>
+      </div>
+      <div class="scenario b">
+        <h4>Recommender B</h4>
+        <div class="sub">Nine wins, one disaster</div>
+        <p style="font-size: 14px;">Perfect on nine predictions. Off by 10 on one. <em>That</em> is the recommendation that gets the user to uninstall.</p>
+        <div class="err-bars">
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar big" style="height: 100%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+          <div class="err-bar" style="height: 1%"></div>
+        </div>
+        <div class="stats">
+          <span>MAE</span><strong>1.00</strong>
+          <span>RMSE</span><strong>3.16</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="narrow">
+    <p>MAE says these recommenders are equally good. RMSE says B is three times worse than A. Both metrics are "right" — they're just answering different questions.</p>
+    <p>This is why the gap between RMSE and MAE matters. A small gap means your errors are uniformly small. A large gap means you have catastrophic outliers hiding in the average. <strong>Always report both</strong>, and look at the gap.</p>
+  </div>
+</section>
+
+<!-- ============= SECTION 4 ============= -->
+<section id="s4">
+  <div class="container">
+    <div class="section-kicker">Section Four</div>
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <h2>The confusion matrix,<br/>but for recommendations</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Once we leave rating prediction and move to "did the user like this or not," every recommendation
+      falls into one of four buckets. Click any cell below to see what it means in real-life terms.
+    </p>
+  </div>
+
+  <div class="container">
+    <div class="widget">
+      <div class="widget-header">
+        <span>Widget 02 — Interactive Confusion Matrix</span>
+        <span class="widget-tag">click any cell</span>
+      </div>
+      <div class="widget-body">
+        <div class="widget-title">Four outcomes for every recommendation</div>
+        <div class="widget-desc">For each item your system did or didn't recommend, and that the user did or didn't like, you get one of four outcomes. The trick is knowing which one your business cares most about avoiding.</div>
+
+        <div class="confusion-wrapper">
+          <div class="confusion-grid">
+            <div class="conf-cell empty"></div>
+            <div class="conf-cell label">User liked</div>
+            <div class="conf-cell label">User didn't</div>
+
+            <div class="conf-cell row-label">You<br/>recommended</div>
+            <div class="conf-cell cell" data-cell="tp">
+              <div class="conf-emoji">✓</div>
+              <div class="conf-name">True Positive</div>
+              <div class="conf-desc">Your recommendation landed</div>
+            </div>
+            <div class="conf-cell cell" data-cell="fp">
+              <div class="conf-emoji">⚠</div>
+              <div class="conf-name">False Positive</div>
+              <div class="conf-desc">Annoying recommendation</div>
+            </div>
+
+            <div class="conf-cell row-label">You<br/>didn't</div>
+            <div class="conf-cell cell" data-cell="fn">
+              <div class="conf-emoji">×</div>
+              <div class="conf-name">False Negative</div>
+              <div class="conf-desc">Missed opportunity</div>
+            </div>
+            <div class="conf-cell cell" data-cell="tn">
+              <div class="conf-emoji">·</div>
+              <div class="conf-name">True Negative</div>
+              <div class="conf-desc">Correctly skipped</div>
+            </div>
+          </div>
+
+          <div class="conf-explainer" id="conf-explainer">
+            <h5>Click any cell to explore</h5>
+            <p>Each outcome has different business consequences. Some companies care most about not annoying users (avoid FP). Others care most about not missing opportunities (avoid FN). The metric you choose should reflect which one stings more.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= SECTION 5 ============= -->
+<section id="s5">
+  <div class="container">
+    <div class="section-kicker">Section Five</div>
+    <div class="section-header">
+      <div class="section-num">05</div>
+      <h2>The precision–recall<br/>trade-off, embodied</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Precision asks "of what I recommended, how much was good?" — like a fishing net with tight mesh.
+      Recall asks "of all the good things, how many did I find?" — like casting a wider net.
+      They pull against each other, and you can <em>feel</em> it in the slider below.
+    </p>
+
+    <p><strong>Precision</strong> = TP / (TP + FP) · How clean is your output? · Lose this, you annoy users.</p>
+    <p><strong>Recall</strong> = TP / (TP + FN) · How comprehensive is your reach? · Lose this, you miss things users would have loved.</p>
+    <p><strong>F1</strong> = harmonic mean of the two. · One number that punishes imbalance.</p>
+  </div>
+
+  <div class="container">
+    <div class="widget">
+      <div class="widget-header">
+        <span>Widget 03 — Threshold Slider</span>
+        <span class="widget-tag">drag the threshold</span>
+      </div>
+      <div class="widget-body">
+        <div class="widget-title">Move the threshold, watch the trade-off</div>
+        <div class="widget-desc">Twelve items, ranked by your model's predicted score. The model recommends everything above the threshold. Slide the threshold up — fewer recommendations but cleaner. Slide down — more recommendations but messier. Watch precision and recall pull against each other.</div>
+
+        <div class="pr-demo">
+          <div class="pr-items" id="pr-items">
+            <!-- populated by JS -->
+          </div>
+          <div class="pr-controls">
+            <label>Score Threshold</label>
+            <input type="range" id="pr-threshold" min="0" max="100" value="55" step="1" />
+            <div style="font-family: var(--mono); font-size: 24px; color: var(--mustard-soft); margin-bottom: 24px;" id="pr-threshold-val">0.55</div>
+            <div class="pr-stats">
+              <div class="pr-stat">
+                <span class="pr-stat-label">Precision</span>
+                <span class="pr-stat-val precision" id="pr-precision">—</span>
+              </div>
+              <div class="pr-stat">
+                <span class="pr-stat-label">Recall</span>
+                <span class="pr-stat-val recall" id="pr-recall">—</span>
+              </div>
+              <div class="pr-stat">
+                <span class="pr-stat-label">F1 Score</span>
+                <span class="pr-stat-val f1" id="pr-f1">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="narrow">
+    <p class="sidenote">A clean experiment: push the threshold to its highest value. You'll likely get high precision (everything you recommend is good) but terrible recall (you barely recommend anything). Push it to its lowest. Now you recommend everything — perfect recall, but precision tanks.</p>
+  </div>
+</section>
+
+<!-- ============= SECTION 6 ============= -->
+<section id="s6">
+  <div class="container">
+    <div class="section-kicker">Section Six</div>
+    <div class="section-header">
+      <div class="section-num">06</div>
+      <h2>The metric the slide<br/>deck forgot: Top-K</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Real users don't see all of your recommendations. They see the first five, ten, maybe twenty.
+      Computing precision over a list of 1,000 items is theatre — meaningful evaluation
+      cuts the list at K and measures only what the user actually sees.
+    </p>
+    <p>This is why production teams report <strong>Precision@K</strong>, <strong>Recall@K</strong>, and <strong>Hit Rate@K</strong> instead of the plain versions.</p>
+  </div>
+
+  <div class="container">
+    <div class="widget">
+      <div class="widget-header">
+        <span>Widget 04 — Top-K Visualizer</span>
+        <span class="widget-tag">change K</span>
+      </div>
+      <div class="widget-body">
+        <div class="widget-title">Twenty ranked items, your choice of K</div>
+        <div class="widget-desc">Green dots are items the user actually liked. The slider sets where you "cut" the list. Items above the cutoff are what you'd actually show to the user. The metrics below count only those.</div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-top: 24px;">
+          <div class="topk-list" id="topk-list">
+            <!-- populated by JS -->
+          </div>
+          <div>
+            <div class="pr-controls">
+              <label>K — number of items shown</label>
+              <input type="range" id="topk-slider" min="1" max="20" value="10" step="1" />
+              <div style="font-family: var(--mono); font-size: 24px; color: var(--mustard-soft); margin-bottom: 24px;" id="topk-val">K = 10</div>
+              <div class="pr-stats">
+                <div class="pr-stat">
+                  <span class="pr-stat-label">Precision@K</span>
+                  <span class="pr-stat-val precision" id="topk-precision">—</span>
+                </div>
+                <div class="pr-stat">
+                  <span class="pr-stat-label">Recall@K</span>
+                  <span class="pr-stat-val recall" id="topk-recall">—</span>
+                </div>
+                <div class="pr-stat">
+                  <span class="pr-stat-label">Hit@K</span>
+                  <span class="pr-stat-val f1" id="topk-hit">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= SECTION 7 ============= -->
+<section id="s7">
+  <div class="container">
+    <div class="section-kicker">Section Seven</div>
+    <div class="section-header">
+      <div class="section-num">07</div>
+      <h2>The ranking metrics<br/>that actually matter</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Precision@K still has a flaw — it doesn't care about <em>order within the K</em>.
+      Whether your relevant items are at positions 1, 2, 3 or 8, 9, 10 — same Precision@10.
+      But users care a lot. Position matters. Enter the ranking metrics.
+    </p>
+    <div class="h4">MAP — Mean Average Precision.</div>
+    <p>Walks down the ranked list. Every time it lands on a relevant item, it computes precision-so-far and remembers it. At the end, it averages those precisions. The result rewards getting good items <em>high in the list</em>.</p>
+    <div class="h4">NDCG — Normalized Discounted Cumulative Gain.</div>
+    <p>The heavyweight champion. It handles graded relevance (a 5-star love is worth more than a 3-star meh) and applies a position discount (rank 1 worth more than rank 5). Then normalizes by the best-possible ordering.</p>
+    <p>The visual below makes it real: the same items in two different orderings produce dramatically different DCG.</p>
+  </div>
+
+  <div class="container">
+    <div class="widget">
+      <div class="widget-header">
+        <span>Widget 05 — Ranking Compared</span>
+        <span class="widget-tag">two orderings, same items</span>
+      </div>
+      <div class="widget-body">
+        <div class="widget-title">Position is everything</div>
+        <div class="widget-desc">Both lists below contain the exact same five items with the same true relevances (the colored bars). The only difference is the order they're in. Watch what happens to NDCG.</div>
+
+        <div class="ndcg-wrapper">
+          <div class="ranking">
+            <div class="ranking-title">Ordering A — relevant items at top</div>
+            <div id="ranking-a"></div>
+            <div class="ranking-totals">
+              <div><div class="label">DCG</div><div class="val" id="dcg-a">—</div></div>
+              <div><div class="label">NDCG</div><div class="val" id="ndcg-a">—</div></div>
+            </div>
+          </div>
+          <div class="ranking">
+            <div class="ranking-title">Ordering B — relevant items at bottom</div>
+            <div id="ranking-b"></div>
+            <div class="ranking-totals">
+              <div><div class="label">DCG</div><div class="val" id="dcg-b">—</div></div>
+              <div><div class="label">NDCG</div><div class="val" id="ndcg-b">—</div></div>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: 24px; font-size: 14px; color: var(--ink-soft); max-width: 100%;">
+          Same exact items. Same exact relevances. The only thing that changed is position — and NDCG dropped by more than half. This is what no other metric in the slide deck captures.
+        </p>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="narrow">
+    <div class="h4">MRR — Mean Reciprocal Rank.</div>
+    <p>The simplest ranking metric: where does the <em>first</em> relevant item appear? If it's at position 1, score is 1.0. Position 2, score is 0.5. Position 5, score is 0.2. Average across users. Best for "find me one good answer" problems — Q&A systems, voice assistants. Less useful for browsing-style discovery.</p>
+  </div>
+</section>
+
+<!-- ============= SECTION 8 ============= -->
+<section id="s8">
+  <div class="container">
+    <div class="section-kicker">Section Eight</div>
+    <div class="section-header">
+      <div class="section-num">08</div>
+      <h2>Beyond accuracy:<br/>the unloved metrics</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      Here's the dirty secret of recommender evaluation: a system can score perfectly
+      on every accuracy metric above and still be terrible.
+    </p>
+    <p class="sidenote">A recommender that shows every user the same ten most-popular items will look fine on precision and recall. Popular items <em>are</em> popular for a reason. But the system is useless — it doesn't personalize, it doesn't surprise, it doesn't help users discover anything.</p>
+    <p>This is why mature evaluation suites include the metrics nobody talks about in tutorials.</p>
+
+    <div class="h4">Coverage.</div>
+    <p>Of your entire catalog, what fraction ever gets recommended to <em>anyone</em>? If you have 100,000 books but only 200 ever appear in recommendations, your coverage is 0.2%. That's the popularity-bias failure.</p>
+
+    <div class="h4">Diversity.</div>
+    <p>Within a single user's list, how different are the items from each other? Recommending ten superhero films to someone who liked one is technically high precision but feels lazy. Diversity is usually computed as the average pairwise distance between recommended items.</p>
+
+    <div class="h4">Novelty.</div>
+    <p>Are you recommending things the user hasn't seen before? A system that recommends "the movie you watched last night" is high precision but useless. Novelty is usually inversely proportional to item popularity.</p>
+
+    <div class="h4">Serendipity.</div>
+    <p>The hardest one. Recommendations should be surprising and delightful — not obvious. There's no universal formula. Active research area.</p>
+
+    <div class="h4">Online metrics — the only ones that really count.</div>
+    <p>Once your system is live, the offline metrics become guides, not ground truth. The real measures take over: click-through rate (CTR), conversion rate, dwell time, retention, revenue. Measured via A/B testing. Many recommenders that won the offline benchmark have lost the A/B test.</p>
+  </div>
+</section>
+
+<!-- ============= SECTION 9 ============= -->
+<section id="s9">
+  <div class="container">
+    <div class="section-kicker">Section Nine</div>
+    <div class="section-header">
+      <div class="section-num">09</div>
+      <h2>Which metric should<br/>I actually use?</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      A working flowchart. Answer the questions, get a recommendation.
+      Hit reset to walk through it again with a different problem in mind.
+    </p>
+  </div>
+
+  <div class="container">
+    <div class="widget">
+      <div class="widget-header">
+        <span>Widget 06 — Decision Guide</span>
+        <span class="widget-tag">interactive walkthrough</span>
+      </div>
+      <div class="widget-body">
+
+        <div class="decision-guide">
+          <div class="decision-step active" data-step="1">
+            <div class="decision-question">Are you predicting a numeric rating, or selecting items to show?</div>
+            <div class="decision-options">
+              <button class="decision-option" data-next="2a">Predicting a numeric rating (1–5 stars, 1–10, etc.)</button>
+              <button class="decision-option" data-next="2b">Selecting items to display in a list</button>
+            </div>
+          </div>
+
+          <div class="decision-step" data-step="2a">
+            <div class="decision-question">Are some user-prediction errors much more costly than others?</div>
+            <div class="decision-options">
+              <button class="decision-option" data-next="r-rmse">Yes — a single bad recommendation can drive users away</button>
+              <button class="decision-option" data-next="r-mae">No — all errors are roughly equally bad</button>
+              <button class="decision-option" data-next="r-both">I want to compare across datasets with different scales</button>
+            </div>
+          </div>
+
+          <div class="decision-step" data-step="2b">
+            <div class="decision-question">How is relevance defined for your problem?</div>
+            <div class="decision-options">
+              <button class="decision-option" data-next="3-binary">Binary — user either liked it or didn't</button>
+              <button class="decision-option" data-next="3-graded">Graded — there are degrees of relevance (ratings, watch time)</button>
+              <button class="decision-option" data-next="r-mrr">There's exactly one right answer to find (Q&A, voice)</button>
+            </div>
+          </div>
+
+          <div class="decision-step" data-step="3-binary">
+            <div class="decision-question">What matters most to you?</div>
+            <div class="decision-options">
+              <button class="decision-option" data-next="r-precision">Quality — bad recommendations are very costly</button>
+              <button class="decision-option" data-next="r-recall">Coverage — missing relevant items is very costly</button>
+              <button class="decision-option" data-next="r-map">Top-of-list ranking — order within the K matters</button>
+              <button class="decision-option" data-next="r-f1">Balanced — I want one number</button>
+            </div>
+          </div>
+
+          <div class="decision-step" data-step="3-graded">
+            <div class="decision-question">Are you optimizing offline metrics, or running in production?</div>
+            <div class="decision-options">
+              <button class="decision-option" data-next="r-ndcg">Offline — comparing models on a benchmark</button>
+              <button class="decision-option" data-next="r-online">Online — system is deployed, users are interacting</button>
+            </div>
+          </div>
+
+          <!-- Result steps -->
+          <div class="decision-step" data-step="r-rmse">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">RMSE</div>
+              <div class="result-why">Squaring penalizes large errors disproportionately, which matches your business reality. Also report MAE alongside it — the gap between RMSE and MAE tells you about error variance.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-mae">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">MAE</div>
+              <div class="result-why">When all errors are equally costly, MAE is the cleanest, most interpretable choice. "Predictions are off by an average of X stars" is something you can actually explain to stakeholders.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-both">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">NMAE</div>
+              <div class="result-why">Normalized MAE divides by rating range. An MAE of 1.0 is great on a 1–10 scale, terrible on a 1–2 scale. NMAE makes the comparison fair across datasets.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-mrr">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">MRR</div>
+              <div class="result-why">When the goal is "find one good answer fast," MRR rewards getting the first relevant item early in the list. Gold standard for Q&A and voice systems.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-precision">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">Precision@K</div>
+              <div class="result-why">Use the top-K version, not vanilla precision. Pick K based on what users actually see — usually 5, 10, or 20. If users have limited attention, this is your most important metric.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-recall">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">Recall@K</div>
+              <div class="result-why">Or, if K can be very large or unbounded, plain Recall. Best for use cases where missing relevant items is genuinely costly — medical, compliance, legal search.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-map">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">MAP</div>
+              <div class="result-why">Mean Average Precision rewards getting the relevant items toward the top of the list. Great middle ground between Precision@K and full ranking metrics.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-f1">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">F1@K</div>
+              <div class="result-why">Harmonic mean of Precision@K and Recall@K. Punishes imbalance — a model can't just optimize one and ignore the other. Good general-purpose metric when you can't decide which side matters more.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-ndcg">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">NDCG@K</div>
+              <div class="result-why">The default for modern ranking research. Handles graded relevance, applies position discount, normalizes by the ideal ordering. If you're comparing models on a benchmark, this is what reviewers will expect to see.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+          <div class="decision-step" data-step="r-online">
+            <div class="decision-result">
+              <div class="result-label">Recommended primary metric</div>
+              <div class="result-metric">CTR + A/B testing</div>
+              <div class="result-why">Once a system is live, offline metrics become guides, not ground truth. Run controlled A/B experiments and measure click-through rate, conversion, retention. Always pair with at least one "guardrail" metric like diversity to catch failure modes.</div>
+              <button class="decision-restart">Start over</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= SECTION 10 ============= -->
+<section id="s10">
+  <div class="container">
+    <div class="section-kicker">Section Ten</div>
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <h2>The ensemble question,<br/>two ways</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">
+      You asked whether ensembling helps for recommendation metrics. There are actually
+      two ways to read that question, and both are interesting.
+    </p>
+  </div>
+
+  <div class="container">
+    <div class="reading-grid">
+      <div class="reading r1">
+        <div class="reading-num">i.</div>
+        <h4>Ensembling models, measured by one metric</h4>
+        <p>This is the standard "hybrid recommender" pattern, and yes — it almost always wins. The Netflix Prize was won by an ensemble of over 100 models. Common patterns: weighted blending of predicted ratings, switching between models for different user segments, cascading (fast model filters to candidates, slow model ranks them).</p>
+        <p>In your slide's table, Item-Item beats both User-User and SVD on every metric. But a weighted blend of Item-Item and SVD likely beats all three. SVD captures latent patterns Item-Item misses, even though its standalone RMSE is worse.</p>
+        <div class="verdict">
+          <span class="verdict-label">verdict</span>
+          Yes, do this. It's the closest thing to a free lunch in machine learning.
+        </div>
+      </div>
+      <div class="reading r2">
+        <div class="reading-num">ii.</div>
+        <h4>Ensembling metrics into a single score</h4>
+        <p>Less common, more dangerous. The idea: combine several metrics into one composite score using weights. Score = α × Precision@10 + β × Diversity − γ × PopularityBias.</p>
+        <p>This is appealing — one number to optimize, easy to rank models. But the weights are arbitrary, and a single composite hides important trade-offs. A model with great precision but zero diversity might score the same as one that's mediocre on both.</p>
+        <p>The wiser approach: report a <em>suite</em> of 4–5 metrics (this is what most papers do), or use Pareto-front analysis where you plot models on multi-dimensional axes and pick from the frontier.</p>
+        <div class="verdict">
+          <span class="verdict-label">verdict</span>
+          Useful only when you absolutely need to auto-select a model. Otherwise, report multiple metrics and let the human decide.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= SECTION 11 ============= -->
+<section id="s11">
+  <div class="container">
+    <div class="section-kicker">Section Eleven</div>
+    <div class="section-header">
+      <div class="section-num">11</div>
+      <h2>Cheat sheet</h2>
+    </div>
+  </div>
+  <div class="narrow">
+    <p class="lead">Filter by category. Click a card to see the gist. This is the page to bookmark.</p>
+  </div>
+
+  <div class="container">
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="regression">Rating Prediction</button>
+      <button class="filter-btn" data-filter="classification">Classification</button>
+      <button class="filter-btn" data-filter="ranking">Ranking</button>
+      <button class="filter-btn" data-filter="beyond">Beyond Accuracy</button>
+      <button class="filter-btn" data-filter="online">Online</button>
+    </div>
+
+    <div class="cheat-grid" id="cheat-grid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="closing">
+      If you remember nothing else: report multiple metrics, always include a top-K version, and keep at least one "beyond accuracy" metric in your dashboard. That combination catches most of the failure modes single-metric evaluation misses.
+    </div>
+    <div class="row">
+      <span>Supplementary to Session Presentation</span>
+      <span>Recommendation Systems</span>
+      <span>An Honest Field Guide</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ============= MAE/RMSE Calculator =============
+  const books = [
+    { name: 'A',  pred: 7, actual: 8 },
+    { name: 'B',  pred: 6, actual: 5 },
+    { name: 'C',  pred: 9, actual: 9 },
+    { name: 'D',  pred: 5, actual: 3 },
+    { name: 'E',  pred: 8, actual: 7 }
+  ];
+
+  function renderPredRows() {
+    const root = document.getElementById('pred-rows');
+    root.innerHTML = '';
+    books.forEach((book, i) => {
+      const err = Math.abs(book.pred - book.actual);
+      const isBig = err >= 4;
+      const row = document.createElement('div');
+      row.className = 'pred-row';
+      row.innerHTML = `
+        <div class="pred-label">Book ${book.name}</div>
+        <div class="slider-group">
+          <label>Predicted (${book.pred})</label>
+          <input type="range" min="0" max="10" step="1" value="${book.pred}" data-i="${i}" data-kind="pred" />
+        </div>
+        <div class="slider-group">
+          <label>Actual (${book.actual})</label>
+          <input type="range" min="0" max="10" step="1" value="${book.actual}" data-i="${i}" data-kind="actual" />
+        </div>
+        <div class="err-display ${isBig ? 'big' : ''}">|${err}|</div>
+      `;
+      root.appendChild(row);
+    });
+    root.querySelectorAll('input[type="range"]').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const i = +e.target.dataset.i;
+        const kind = e.target.dataset.kind;
+        books[i][kind] = +e.target.value;
+        renderPredRows();
+        updateMetrics();
+      });
+    });
+  }
+
+  function updateMetrics() {
+    const errs = books.map(b => Math.abs(b.pred - b.actual));
+    const mae = errs.reduce((a,b) => a+b, 0) / errs.length;
+    const rmse = Math.sqrt(errs.reduce((a,b) => a + b*b, 0) / errs.length);
+    const gap = rmse - mae;
+    document.getElementById('mae-val').textContent = mae.toFixed(2);
+    document.getElementById('rmse-val').textContent = rmse.toFixed(2);
+    document.getElementById('gap-val').textContent = gap.toFixed(2);
+    let insight;
+    if (gap < 0.1) {
+      insight = 'Errors are uniformly small. RMSE and MAE agree closely — no hidden outliers.';
+    } else if (gap < 0.5) {
+      insight = 'Modest variance in error sizes. Some predictions are off more than others.';
+    } else if (gap < 1.5) {
+      insight = 'Significant outliers. RMSE is being dragged up by one or two large errors.';
+    } else {
+      insight = 'Large outlier dominates. RMSE far exceeds MAE — a few catastrophic predictions are masking the rest.';
+    }
+    document.getElementById('insight').textContent = insight;
+  }
+
+  renderPredRows();
+  updateMetrics();
+
+  // ============= Confusion Matrix =============
+  const confExplanations = {
+    tp: {
+      title: 'True Positive — the win',
+      scenario: 'You recommended a movie. The user watched it and rated it 5 stars.',
+      detail: 'These are your wins. They drive engagement, retention, and revenue. Both Precision and Recall reward more of these. Maximizing TPs is rarely the wrong move — but maximizing them blindly often comes at the cost of more FPs.'
+    },
+    fp: {
+      title: 'False Positive — the annoyance',
+      scenario: 'You recommended a horror movie. The user hates horror. They never click on you again.',
+      detail: 'These are the most damaging in user-facing recommendation. Each one erodes trust. They hurt Precision but don\'t affect Recall. If your business cares most about user trust (push notifications, email digests, top-of-feed), focus on minimizing FPs.'
+    },
+    fn: {
+      title: 'False Negative — the missed chance',
+      scenario: 'There was a romantic comedy in your catalog the user would have loved. You never showed it to them.',
+      detail: 'Invisible failures — the user never knows what they missed. They hurt Recall but don\'t affect Precision. In high-stakes domains (medical diagnosis, fraud detection, legal discovery), missing a relevant item is the worst outcome and Recall becomes the priority.'
+    },
+    tn: {
+      title: 'True Negative — the correct skip',
+      scenario: 'You didn\'t recommend a documentary about insects. The user wouldn\'t have watched it anyway.',
+      detail: 'These are correct decisions but they don\'t show up in Precision or Recall — both metrics ignore TNs entirely. This is intentional: in recommendation, you typically have millions of TNs (most things in your catalog are irrelevant to most users), so counting them would drown out the signal.'
+    }
+  };
+
+  document.querySelectorAll('.conf-cell.cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      document.querySelectorAll('.conf-cell.cell').forEach(c => c.classList.remove('active'));
+      cell.classList.add('active');
+      const data = confExplanations[cell.dataset.cell];
+      document.getElementById('conf-explainer').innerHTML = `
+        <h5>${data.title}</h5>
+        <p class="scenario-text">${data.scenario}</p>
+        <p>${data.detail}</p>
+      `;
+    });
+  });
+
+  // ============= Precision/Recall Slider =============
+  const prItems = [
+    { name: 'The Three-Body Problem', score: 0.94, relevant: true },
+    { name: 'Project Hail Mary',       score: 0.88, relevant: true },
+    { name: 'Klara and the Sun',       score: 0.82, relevant: false },
+    { name: 'Recursion',               score: 0.76, relevant: true },
+    { name: 'Sea of Tranquility',      score: 0.71, relevant: true },
+    { name: 'The Midnight Library',    score: 0.65, relevant: false },
+    { name: 'Tomorrow x3',             score: 0.58, relevant: true },
+    { name: 'Anxious People',          score: 0.51, relevant: false },
+    { name: 'The Vanishing Half',      score: 0.44, relevant: true },
+    { name: 'Cloud Cuckoo Land',       score: 0.37, relevant: false },
+    { name: 'The Push',                score: 0.28, relevant: false },
+    { name: 'Such a Fun Age',          score: 0.18, relevant: false }
+  ];
+
+  function renderPRItems(threshold) {
+    const root = document.getElementById('pr-items');
+    root.innerHTML = '';
+    prItems.forEach((item, i) => {
+      const recommended = item.score >= threshold;
+      const div = document.createElement('div');
+      div.className = `pr-item ${recommended ? 'recommended' : ''} ${item.relevant ? 'relevant' : ''}`;
+      div.innerHTML = `
+        <span class="pr-rank">${String(i+1).padStart(2, '0')}</span>
+        <span>${item.name}</span>
+        <span class="pr-score">score ${item.score.toFixed(2)}</span>
+        <span class="pr-relevance ${item.relevant ? 'yes' : 'no'}">${item.relevant ? '● rel.' : '○'}</span>
+      `;
+      root.appendChild(div);
+    });
+
+    const recommended = prItems.filter(x => x.score >= threshold);
+    const tp = recommended.filter(x => x.relevant).length;
+    const fp = recommended.length - tp;
+    const totalRel = prItems.filter(x => x.relevant).length;
+    const fn = totalRel - tp;
+    const precision = recommended.length === 0 ? 0 : tp / recommended.length;
+    const recall = totalRel === 0 ? 0 : tp / totalRel;
+    const f1 = (precision + recall) === 0 ? 0 : 2 * precision * recall / (precision + recall);
+    document.getElementById('pr-precision').textContent = precision.toFixed(2);
+    document.getElementById('pr-recall').textContent = recall.toFixed(2);
+    document.getElementById('pr-f1').textContent = f1.toFixed(2);
+    document.getElementById('pr-threshold-val').textContent = threshold.toFixed(2);
+  }
+
+  document.getElementById('pr-threshold').addEventListener('input', (e) => {
+    renderPRItems(+e.target.value / 100);
+  });
+  renderPRItems(0.55);
+
+  // ============= Top-K =============
+  const topkItems = [
+    { name: 'The Notebook', score: 0.96, rel: true  },
+    { name: 'La La Land',   score: 0.91, rel: true  },
+    { name: 'About Time',   score: 0.87, rel: false },
+    { name: '500 Days',     score: 0.83, rel: true  },
+    { name: 'Pride & Prej.',score: 0.79, rel: true  },
+    { name: 'Eternal Sunshine', score: 0.74, rel: false },
+    { name: 'Before Sunrise', score: 0.69, rel: true },
+    { name: 'When Harry Met Sally', score: 0.65, rel: false },
+    { name: 'Crazy Rich Asians', score: 0.61, rel: true },
+    { name: 'The Big Sick', score: 0.57, rel: false },
+    { name: 'Roman Holiday', score: 0.52, rel: true },
+    { name: 'Sleepless in Seattle', score: 0.47, rel: false },
+    { name: 'You\'ve Got Mail', score: 0.42, rel: false },
+    { name: 'Notting Hill', score: 0.38, rel: true },
+    { name: 'Love Actually', score: 0.33, rel: false },
+    { name: 'Four Weddings', score: 0.28, rel: false },
+    { name: 'Bridget Jones', score: 0.23, rel: false },
+    { name: 'About a Boy', score: 0.18, rel: true },
+    { name: 'High Fidelity', score: 0.13, rel: false },
+    { name: 'Garden State', score: 0.07, rel: false }
+  ];
+
+  function renderTopK(k) {
+    const root = document.getElementById('topk-list');
+    root.innerHTML = '';
+    topkItems.forEach((item, i) => {
+      const inTop = i < k;
+      const row = document.createElement('div');
+      row.className = `topk-row ${inTop ? 'in-top' : ''} ${item.rel ? 'relevant' : ''}`;
+      row.innerHTML = `
+        <span class="rank">${String(i+1).padStart(2, '0')}</span>
+        <span class="marker"></span>
+        <span class="item-name">${item.name}</span>
+        <span class="score">${item.score.toFixed(2)}</span>
+      `;
+      root.appendChild(row);
+      if (i + 1 === k && i < topkItems.length - 1) {
+        const cutoff = document.createElement('div');
+        cutoff.className = 'topk-cutoff';
+        root.appendChild(cutoff);
+      }
+    });
+    const top = topkItems.slice(0, k);
+    const tp = top.filter(x => x.rel).length;
+    const totalRel = topkItems.filter(x => x.rel).length;
+    const precision = k === 0 ? 0 : tp / k;
+    const recall = totalRel === 0 ? 0 : tp / totalRel;
+    const hit = tp > 0 ? 1 : 0;
+    document.getElementById('topk-val').textContent = `K = ${k}`;
+    document.getElementById('topk-precision').textContent = precision.toFixed(2);
+    document.getElementById('topk-recall').textContent = recall.toFixed(2);
+    document.getElementById('topk-hit').textContent = hit.toFixed(2);
+  }
+
+  document.getElementById('topk-slider').addEventListener('input', (e) => {
+    renderTopK(+e.target.value);
+  });
+  renderTopK(10);
+
+  // ============= NDCG =============
+  // Same items, two orderings. Relevance scores 0-3.
+  const ndcgItems = [
+    { name: 'Item Alpha',   rel: 3 },
+    { name: 'Item Bravo',   rel: 2 },
+    { name: 'Item Charlie', rel: 0 },
+    { name: 'Item Delta',   rel: 3 },
+    { name: 'Item Echo',    rel: 1 }
+  ];
+
+  // Best ordering: rel desc
+  const orderingA = [...ndcgItems].sort((a,b) => b.rel - a.rel);
+  // Worst-ish ordering: rel asc
+  const orderingB = [...ndcgItems].sort((a,b) => a.rel - b.rel);
+
+  function dcg(arr) {
+    return arr.reduce((sum, item, i) => {
+      const gain = (Math.pow(2, item.rel) - 1) / Math.log2(i + 2);
+      return sum + gain;
+    }, 0);
+  }
+
+  const idealDCG = dcg([...ndcgItems].sort((a,b) => b.rel - a.rel));
+
+  function renderRanking(rootId, items, dcgId, ndcgId) {
+    const root = document.getElementById(rootId);
+    root.innerHTML = '';
+    items.forEach((item, i) => {
+      const gain = (Math.pow(2, item.rel) - 1) / Math.log2(i + 2);
+      const row = document.createElement('div');
+      row.className = 'ranking-row';
+      row.innerHTML = `
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--muted);">${i+1}.</span>
+        <div>
+          <div style="font-family: var(--serif); font-size: 14px; margin-bottom: 4px;">${item.name}</div>
+          <div class="relevance-bar"><div class="relevance-fill" style="width: ${(item.rel / 3) * 100}%;"></div></div>
+        </div>
+        <span class="gain">+${gain.toFixed(2)}</span>
+      `;
+      root.appendChild(row);
+    });
+    const d = dcg(items);
+    document.getElementById(dcgId).textContent = d.toFixed(2);
+    document.getElementById(ndcgId).textContent = (d / idealDCG).toFixed(2);
+  }
+
+  renderRanking('ranking-a', orderingA, 'dcg-a', 'ndcg-a');
+  renderRanking('ranking-b', orderingB, 'dcg-b', 'ndcg-b');
+
+  // ============= Decision Guide =============
+  document.querySelectorAll('.decision-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.next;
+      document.querySelectorAll('.decision-step').forEach(s => s.classList.remove('active'));
+      document.querySelector(`[data-step="${next}"]`).classList.add('active');
+    });
+  });
+  document.querySelectorAll('.decision-restart').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.decision-step').forEach(s => s.classList.remove('active'));
+      document.querySelector('[data-step="1"]').classList.add('active');
+    });
+  });
+
+  // ============= Cheat Sheet =============
+  const cheatData = [
+    { name: 'MAE', cat: 'regression', best: 'Interpretability — same units as the rating', watch: 'Treats all errors equally; misses outliers', use: 'Default for rating prediction with uniform error costs' },
+    { name: 'RMSE', cat: 'regression', best: 'Penalizes catastrophic predictions', watch: 'Sensitive to outliers in the data', use: 'When one bad recommendation is much worse than several mediocre ones' },
+    { name: 'NMAE', cat: 'regression', best: 'Comparing across datasets with different scales', watch: 'Loses the absolute interpretation of MAE', use: 'Cross-dataset benchmarks' },
+    { name: 'Precision', cat: 'classification', best: 'Quality of recommendations shown', watch: 'Ignores items you missed', use: 'Push notifications, email digests, top-of-feed' },
+    { name: 'Recall', cat: 'classification', best: 'Coverage of relevant items', watch: 'Can be inflated by recommending too many items', use: 'Medical, compliance, legal — high cost of missing' },
+    { name: 'F1 Score', cat: 'classification', best: 'Balanced single number', watch: 'Assumes precision and recall matter equally', use: 'When you can\'t prioritize one over the other' },
+    { name: 'Precision@K', cat: 'classification', best: 'Matches what users actually see', watch: 'K choice is somewhat arbitrary', use: 'Production top-N recommenders' },
+    { name: 'Hit Rate@K', cat: 'classification', best: 'Sanity check — did anything good show up?', watch: 'Very coarse, binary per user', use: 'Debugging baseline performance' },
+    { name: 'MAP', cat: 'ranking', best: 'Rewards getting good items high in the list', watch: 'Binary relevance only', use: 'Ranked lists with hit/miss judgments' },
+    { name: 'NDCG', cat: 'ranking', best: 'Graded relevance + position discount', watch: 'Harder to explain to non-technical stakeholders', use: 'Modern ranking research, default in academic work' },
+    { name: 'MRR', cat: 'ranking', best: 'Find-one-good-answer use cases', watch: 'Ignores items after the first hit', use: 'Q&A, voice assistants, search' },
+    { name: 'Coverage', cat: 'beyond', best: 'Catches popularity bias', watch: 'Doesn\'t measure user satisfaction directly', use: 'Diversifying recommendations across the catalog' },
+    { name: 'Diversity', cat: 'beyond', best: 'Avoids repetitive recommendation lists', watch: 'Can hurt precision if pushed too far', use: 'Browsing experiences, discovery feeds' },
+    { name: 'Novelty', cat: 'beyond', best: 'Encourages discovery of new items', watch: 'Can recommend obscure junk if unbounded', use: 'When the goal is to broaden user horizons' },
+    { name: 'Serendipity', cat: 'beyond', best: 'Captures surprise & delight', watch: 'No standard formula; hard to measure', use: 'Editorial / curated discovery surfaces' },
+    { name: 'CTR', cat: 'online', best: 'Real user behavior, not proxies', watch: 'Doesn\'t capture long-term satisfaction', use: 'Live A/B tests in production' },
+    { name: 'Conversion / Retention', cat: 'online', best: 'Ties recommendations to business outcomes', watch: 'Slow to measure, requires lots of traffic', use: 'Strategic decisions about model deployment' }
+  ];
+
+  const catLabels = {
+    regression: 'Rating Prediction',
+    classification: 'Classification',
+    ranking: 'Ranking',
+    beyond: 'Beyond Accuracy',
+    online: 'Online'
+  };
+
+  function renderCheats(filter) {
+    const root = document.getElementById('cheat-grid');
+    root.innerHTML = '';
+    cheatData.forEach(item => {
+      if (filter !== 'all' && item.cat !== filter) return;
+      const card = document.createElement('div');
+      card.className = `cheat-card`;
+      card.innerHTML = `
+        <div class="name">${item.name}</div>
+        <div class="world-tag ${item.cat}">${catLabels[item.cat]}</div>
+        <div class="row"><span class="key">Best for</span><span class="val">${item.best}</span></div>
+        <div class="row"><span class="key">Watch out</span><span class="val">${item.watch}</span></div>
+        <div class="row"><span class="key">Use it</span><span class="val">${item.use}</span></div>
+      `;
+      root.appendChild(card);
+    });
+  }
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCheats(btn.dataset.filter);
+    });
+  });
+  renderCheats('all');
+</script>
+
+</body>
+</html>
