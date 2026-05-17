@@ -1,0 +1,2260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gradient Descent — An Interactive Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --bg-elev: #131826;
+    --bg-elev-2: #1a2030;
+    --ink: #f0ebe0;
+    --ink-mute: #a8a496;
+    --ink-faint: #5e5b52;
+    --rule: #232938;
+    --accent: #f0b35f;       /* warm amber - the ball */
+    --accent-soft: #d99845;
+    --teal: #5dd4cf;          /* gradient field */
+    --teal-soft: #3aa8a3;
+    --rose: #e07a7a;          /* divergent / warning */
+    --violet: #b594d6;        /* SGD */
+    --grid: rgba(240, 235, 224, 0.04);
+    --grid-strong: rgba(240, 235, 224, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter Tight', -apple-system, sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ---------- TYPOGRAPHY ---------- */
+  .display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: "opsz" 144;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9em;
+  }
+  em.var {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--accent);
+  }
+  em.var-2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--teal);
+  }
+
+  /* ---------- LAYOUT ---------- */
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  section {
+    padding: 100px 0;
+    position: relative;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 24px;
+    display: inline-block;
+  }
+  .eyebrow::before {
+    content: "§ ";
+    color: var(--ink-faint);
+  }
+
+  h1.title {
+    font-size: clamp(56px, 11vw, 140px);
+    font-weight: 300;
+    font-variation-settings: "opsz" 144;
+  }
+  h1.title em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--accent);
+  }
+  h2 {
+    font-size: clamp(34px, 5.2vw, 56px);
+    margin-bottom: 28px;
+    font-weight: 400;
+  }
+  h2 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  h3 {
+    font-size: 22px;
+    margin-bottom: 12px;
+    font-weight: 500;
+    font-family: 'Fraunces', serif;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    margin-bottom: 1.1em;
+    max-width: 64ch;
+    color: var(--ink);
+  }
+  p.lead {
+    font-size: 22px;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 56ch;
+    margin-bottom: 1.5em;
+  }
+  p.mute {
+    color: var(--ink-mute);
+  }
+
+  .col-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+  }
+  @media (max-width: 800px) {
+    .col-2 { grid-template-columns: 1fr; gap: 40px; }
+    section { padding: 70px 0; }
+    .wrap { padding: 0 22px; }
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 60px 0;
+  }
+  .hero canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.55;
+    z-index: 0;
+  }
+  .hero .wrap { position: relative; z-index: 2; }
+  .hero-meta {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 60px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-mute);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .hero-meta span { color: var(--ink-faint); }
+  .hero-sub {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(20px, 2.4vw, 28px);
+    color: var(--ink-mute);
+    margin-top: 32px;
+    max-width: 38ch;
+    line-height: 1.4;
+  }
+  .scroll-cue {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    z-index: 2;
+    animation: bob 2.4s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translate(-50%, 0); opacity: 0.6; }
+    50%      { transform: translate(-50%, 6px); opacity: 1; }
+  }
+
+  /* ---------- CARDS / CONTAINERS ---------- */
+  .card {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 32px;
+  }
+  .panel {
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-elev-2);
+  }
+  .panel-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    font-weight: 500;
+  }
+  .panel-header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+  .panel-body { padding: 24px; }
+
+  canvas.viz {
+    display: block;
+    width: 100%;
+    background: var(--bg);
+    border-radius: 2px;
+    cursor: crosshair;
+  }
+
+  /* ---------- CONTROLS ---------- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 20px;
+    align-items: center;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 160px;
+  }
+  .control label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    display: flex;
+    justify-content: space-between;
+  }
+  .control label span.value {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--rule);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(240, 179, 95, 0.15);
+    transition: box-shadow 0.2s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 6px rgba(240, 179, 95, 0.25);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 18px;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  button.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  button.primary:hover {
+    background: var(--accent-soft);
+    color: var(--bg);
+  }
+
+  /* ---------- STATS READOUT ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--rule);
+    margin-top: 20px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stat {
+    background: var(--bg-elev-2);
+    padding: 14px 16px;
+  }
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .stat-value.accent { color: var(--accent); }
+  @media (max-width: 700px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ---------- EQUATION BLOCK ---------- */
+  .equation {
+    margin: 36px 0;
+    padding: 36px 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    text-align: center;
+    background: linear-gradient(to bottom, rgba(240,179,95,0.02), transparent);
+  }
+  .equation .formula {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    margin-bottom: 18px;
+  }
+  .equation .formula .op {
+    color: var(--ink-mute);
+    margin: 0 0.3em;
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-weight: 400;
+  }
+  .equation .gloss {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+  }
+  .equation .gloss em { color: var(--accent); font-style: normal; }
+
+  /* ---------- 3-COL COMPARISON ---------- */
+  .triptych {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .triptych .panel { padding: 0; }
+  .triptych canvas { height: 220px; }
+  .triptych .verdict {
+    padding: 16px 20px;
+    border-top: 1px solid var(--rule);
+    background: var(--bg-elev-2);
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+  .triptych .verdict strong { color: var(--ink); display: block; margin-bottom: 4px; font-weight: 500; }
+  .triptych .verdict.warn strong { color: var(--rose); }
+  .triptych .verdict.good strong { color: var(--teal); }
+  @media (max-width: 800px) {
+    .triptych { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- VARIANTS TABLE ---------- */
+  .variants {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 30px;
+  }
+  .variant {
+    padding: 28px;
+    background: var(--bg-elev);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    border-top: 3px solid;
+    position: relative;
+  }
+  .variant.batch  { border-top-color: var(--teal); }
+  .variant.sgd    { border-top-color: var(--violet); }
+  .variant.mini   { border-top-color: var(--accent); }
+  .variant-name {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+  .variant-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-mute);
+    margin-bottom: 16px;
+  }
+  .variant ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 18px;
+    font-size: 14px;
+  }
+  .variant li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    gap: 10px;
+  }
+  .variant li:last-child { border-bottom: none; }
+  .variant li::before {
+    content: "→";
+    color: var(--ink-faint);
+    font-family: monospace;
+  }
+  @media (max-width: 800px) {
+    .variants { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- TANGENT EXPLAINER ---------- */
+  .insight {
+    padding: 24px 28px;
+    border-left: 2px solid var(--accent);
+    background: rgba(240, 179, 95, 0.04);
+    margin: 32px 0;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .insight::before {
+    content: "↳ Intuition";
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  /* ---------- SECTION DIVIDER ---------- */
+  .divider {
+    border-top: 1px solid var(--rule);
+    margin: 0;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer {
+    padding: 80px 0 60px;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-mute);
+    font-size: 14px;
+  }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+  footer p { max-width: none; margin: 0; }
+
+  .legend {
+    display: flex;
+    gap: 22px;
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    flex-wrap: wrap;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend .line { width: 16px; height: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<section class="hero">
+  <canvas id="heroCanvas"></canvas>
+  <div class="wrap">
+    <div class="hero-meta">
+      <span>An Interactive Explainer</span>
+      <span>·</span>
+      <span>~ 8 min read</span>
+    </div>
+    <h1 class="title display">
+      Gradient<br>
+      <em>Descent.</em>
+    </h1>
+    <p class="hero-sub">
+      The patient, blind, downhill algorithm<br>
+      that teaches almost every neural network<br>
+      how to be useful.
+    </p>
+  </div>
+  <div class="scroll-cue">scroll ↓</div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     1 — THE PROBLEM
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">01 · The Setup</span>
+    <h2>You're a hiker. <em>In thick fog.</em></h2>
+    <div class="col-2">
+      <div>
+        <p class="lead">
+          You're standing somewhere on a hillside. You can't see five feet
+          ahead. But you can feel which way is downhill beneath your boots.
+          How do you find the valley floor?
+        </p>
+        <p class="mute">
+          You take a small step in the steepest downhill direction. Then you stop,
+          re-check the slope under your feet, take another step. Repeat until the
+          ground feels flat. You've just performed gradient descent.
+        </p>
+      </div>
+      <div>
+        <div class="insight">
+          Training a neural network is the same problem in disguise. The
+          "landscape" is the model's error. The "position" is its weights. The
+          algorithm has no map — only a sense of which way is downhill.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     2 — THE LANDSCAPE
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">02 · The Landscape</span>
+    <h2>The loss function <em>is</em> the landscape.</h2>
+    <div class="col-2">
+      <div>
+        <p>
+          Every setting of a model's weights produces some amount of error on the
+          training data. Plot that error against the weights and you get a
+          surface — the <em class="var-2">loss landscape</em>.
+        </p>
+        <p>
+          Low spots = good weights (small error, accurate predictions). High
+          spots = bad weights. Our job is to find a low spot.
+        </p>
+        <p class="mute">
+          With one weight, the landscape is a curve. With two, a surface. With a
+          million weights — like a real neural network — it's a million-dimensional
+          terrain we can't draw but can still walk across, one step at a time.
+        </p>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Loss vs. Weight</h3>
+            <span class="tag">1 dimension</span>
+          </div>
+          <div class="panel-body">
+            <canvas id="landscapeCanvas" class="viz" height="320"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     3 — THE GRADIENT
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">03 · The Gradient</span>
+    <h2>The gradient is just <em>"which way is up."</em></h2>
+    <p class="lead">
+      At any point on the landscape, the gradient is an arrow that points in the
+      direction of steepest <em>ascent</em>, and whose length tells you how steep
+      that ascent is.
+    </p>
+    <div class="col-2">
+      <div>
+        <p>
+          Drag the dot in the panel on the right. Watch the tangent line tilt.
+          That tilt — its sign and its magnitude — is the gradient at that point.
+        </p>
+        <ul style="list-style:none;padding-left:0;margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink-mute);line-height:2.2;">
+          <li>· On the <strong style="color:var(--ink)">left wall</strong>, slope tilts down-right → gradient is <em style="color:var(--rose);font-style:normal">negative</em></li>
+          <li>· On the <strong style="color:var(--ink)">right wall</strong>, slope tilts up-right → gradient is <em style="color:var(--teal);font-style:normal">positive</em></li>
+          <li>· At the <strong style="color:var(--ink)">bottom</strong>, slope is flat → gradient is <em style="color:var(--accent);font-style:normal">zero</em></li>
+        </ul>
+        <div class="insight" style="margin-top: 30px;">
+          Zero gradient means flat ground. That's our signal we've arrived — there's
+          no "downhill" left to walk.
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Drag the point</h3>
+            <span class="tag">interactive</span>
+          </div>
+          <div class="panel-body">
+            <canvas id="gradientCanvas" class="viz" height="360"></canvas>
+            <div class="stats" style="grid-template-columns: 1fr 1fr;">
+              <div class="stat">
+                <div class="stat-label">Position (w)</div>
+                <div class="stat-value" id="gradW">—</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Gradient (∇L)</div>
+                <div class="stat-value accent" id="gradV">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     4 — THE UPDATE RULE
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">04 · The Update Rule</span>
+    <h2>One line of math, <em>read it slowly.</em></h2>
+    <div class="equation">
+      <div class="formula">
+        <em class="var">w</em><sub>new</sub>
+        <span class="op">=</span>
+        <em class="var">w</em><sub>old</sub>
+        <span class="op">−</span>
+        <em class="var-2">α</em>
+        <span class="op">·</span>
+        ∇L(<em class="var">w</em>)
+      </div>
+      <div class="gloss">
+        new position <em>=</em> old position <em>−</em> step size <em>×</em> slope
+      </div>
+    </div>
+    <div class="col-2">
+      <div>
+        <h3>Why subtract?</h3>
+        <p>
+          The gradient ∇L points <em style="color:var(--rose);font-style:normal">uphill</em>.
+          We want to go downhill. So we go the opposite way — hence the minus
+          sign. If the slope under your feet tilts up to the right (positive
+          gradient), you step <em>left</em>. If it tilts up to the left (negative
+          gradient), you step <em>right</em>.
+        </p>
+      </div>
+      <div>
+        <h3>What's <em class="var-2">α</em>?</h3>
+        <p>
+          The <em class="var-2">learning rate</em> — how big a step you take.
+          A small α means tiny, careful shuffles. A large α means giant leaps.
+          We'll see in a moment why this single number is the difference between
+          training a model successfully and watching it explode.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     5 — THE PLAYGROUND
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">05 · The Algorithm in Motion</span>
+    <h2>Watch it walk. <em>Adjust the knobs.</em></h2>
+    <p class="lead">
+      Click anywhere on the curve to drop the ball. Then press <strong>Step</strong>
+      to take one gradient descent step at a time, or <strong>Run</strong> to let
+      it go on its own. Tweak the learning rate and start position to feel how
+      they change everything.
+    </p>
+
+    <div class="panel" style="margin-top: 30px;">
+      <div class="panel-header">
+        <h3>Gradient Descent Playground</h3>
+        <span class="tag" id="gdStatus">ready</span>
+      </div>
+      <div class="panel-body">
+        <div class="legend">
+          <span><span class="dot" style="background:var(--accent)"></span> ball (current weight)</span>
+          <span><span class="line" style="background:var(--teal-soft)"></span> tangent (gradient)</span>
+          <span><span class="dot" style="background:var(--ink-mute);opacity:0.5"></span> previous steps</span>
+        </div>
+        <canvas id="playgroundCanvas" class="viz" height="380"></canvas>
+        <div class="controls">
+          <div class="control">
+            <label>Learning rate (α) <span class="value" id="lrLabel">0.10</span></label>
+            <input type="range" id="lrSlider" min="0.01" max="1.05" step="0.01" value="0.10">
+          </div>
+          <button id="stepBtn">Step</button>
+          <button id="runBtn" class="primary">Run</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Iteration</div>
+            <div class="stat-value" id="iterStat">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Weight (w)</div>
+            <div class="stat-value accent" id="weightStat">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Loss</div>
+            <div class="stat-value" id="lossStat">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Gradient</div>
+            <div class="stat-value" id="gradStat">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight" style="margin-top: 40px;">
+      Notice: the ball takes <em>big</em> steps far from the bottom (where the
+      slope is steep) and <em>tiny</em> steps near the bottom (where it's nearly
+      flat). The algorithm automatically slows itself down as it converges — that's
+      a free gift from the math.
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     6 — LEARNING RATE
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">06 · The Learning Rate</span>
+    <h2>Three settings. <em>Three fates.</em></h2>
+    <p class="lead">
+      The learning rate is the most consequential hyperparameter in deep learning.
+      Below, three identical problems run side-by-side with three different
+      values of <em class="var-2">α</em>. They all start at the same spot.
+    </p>
+
+    <div class="triptych">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>α = 0.02</h3>
+          <span class="tag" style="color:var(--rose)">too small</span>
+        </div>
+        <canvas id="lrSmallCanvas" class="viz" height="220"></canvas>
+        <div class="verdict warn">
+          <strong>Crawls forever.</strong>
+          Progress is real, but glacial. Training would burn through compute
+          before it reaches the bottom.
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <h3>α = 0.3</h3>
+          <span class="tag" style="color:var(--teal)">just right</span>
+        </div>
+        <canvas id="lrJustCanvas" class="viz" height="220"></canvas>
+        <div class="verdict good">
+          <strong>Goldilocks zone.</strong>
+          Confident strides, then naturally smaller steps as it nears the
+          minimum. Settles into the bottom cleanly.
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <h3>α = 1.05</h3>
+          <span class="tag" style="color:var(--rose)">too large</span>
+        </div>
+        <canvas id="lrBigCanvas" class="viz" height="220"></canvas>
+        <div class="verdict warn">
+          <strong>Overshoots and diverges.</strong>
+          Each step jumps clear over the valley to the opposite wall — higher
+          than where it started. Loss explodes.
+        </div>
+      </div>
+    </div>
+
+    <div class="insight" style="margin-top: 40px;">
+      In practice, picking <em class="var-2">α</em> is half art, half experiment.
+      Modern training uses schedules (start big, shrink over time) and adaptive
+      optimizers like Adam that adjust α per-weight. But the intuition is what you
+      just saw: too timid wastes time, too bold detonates.
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     7 — 2D
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">07 · More Than One Weight</span>
+    <h2>Real models live in <em>many dimensions.</em></h2>
+    <p class="lead">
+      A neural network doesn't have one weight, it has thousands or billions. The
+      algorithm doesn't change — at each step, it computes the gradient (now a
+      vector pointing downhill in all dimensions at once) and takes a step against
+      it. Here's the 2D version, viewed from above.
+    </p>
+
+    <div class="panel" style="margin-top: 30px;">
+      <div class="panel-header">
+        <h3>2D Loss Landscape — click to drop a ball</h3>
+        <span class="tag" id="d2Status">contour view</span>
+      </div>
+      <div class="panel-body">
+        <div class="legend">
+          <span><span class="dot" style="background:var(--accent)"></span> ball</span>
+          <span><span class="line" style="background:var(--teal-soft)"></span> path taken</span>
+          <span>Darker = lower loss (deeper)</span>
+        </div>
+        <canvas id="contourCanvas" class="viz" height="420"></canvas>
+        <div class="controls">
+          <button id="d2StepBtn">Step</button>
+          <button id="d2RunBtn" class="primary">Run</button>
+          <button id="d2ClearBtn">Clear all paths</button>
+          <div class="control" style="max-width:240px;">
+            <label>Learning rate <span class="value" id="lr2Label">0.20</span></label>
+            <input type="range" id="lr2Slider" min="0.01" max="0.6" step="0.01" value="0.20">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight" style="margin-top: 40px;">
+      Notice how the ball doesn't always head straight for the bottom. In valleys
+      that are steeper one way than the other (called <em>ill-conditioned</em>
+      landscapes), gradient descent zig-zags. This is why advanced optimizers
+      exist — to smooth out that wobble.
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     8 — LOCAL MINIMA
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">08 · The Catch</span>
+    <h2>Sometimes you find <em>a</em> valley, but not <em>the</em> valley.</h2>
+    <p class="lead">
+      Real loss landscapes aren't smooth bowls. They have bumps, ridges, and
+      multiple valleys at different depths. Gradient descent only knows local
+      information — it walks downhill from wherever it starts. So where you start
+      can determine where you end up.
+    </p>
+
+    <div class="panel" style="margin-top: 30px;">
+      <div class="panel-header">
+        <h3>A bumpy landscape — click to drop balls from different starts</h3>
+        <span class="tag">non-convex</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="bumpyCanvas" class="viz" height="320"></canvas>
+        <div class="controls">
+          <button id="bumpyClearBtn">Clear</button>
+          <button id="bumpyRandomBtn" class="primary">Drop 5 random balls</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-2" style="margin-top: 40px;">
+      <div>
+        <h3>The good news</h3>
+        <p>
+          In very high dimensions (which is where real neural networks live), it
+          turns out that bad local minima are surprisingly rare. Most of the
+          "stuck points" turn out to be saddle points — places that are downhill
+          in some directions and uphill in others. A little noise in the gradient
+          (more on that in a moment) is usually enough to escape them.
+        </p>
+      </div>
+      <div>
+        <h3>The not-so-good news</h3>
+        <p>
+          Picking a good starting point still matters. So does adding momentum,
+          using adaptive learning rates, and — the most underrated trick — sheer
+          luck. Modern training pipelines combine clever initialization, smart
+          optimizers, and lots of experimentation to push the ball toward a deep
+          valley.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     9 — VARIANTS
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">09 · The Three Flavors</span>
+    <h2>How much data <em>per step?</em></h2>
+    <p class="lead">
+      Every step requires computing a gradient on some training data. The
+      question is: <em>how much</em> data? That single choice gives us the three
+      variants every textbook covers — and a tradeoff between accuracy, speed,
+      and noise.
+    </p>
+
+    <div class="variants">
+      <div class="variant batch">
+        <div class="variant-tag">Variant 01</div>
+        <div class="variant-name">Batch Gradient Descent</div>
+        <p class="mute" style="font-size:14px;">
+          Compute the gradient using <em>every single training example</em>
+          before taking one step. The thoughtful, careful walker.
+        </p>
+        <ul>
+          <li><span><strong>+</strong> Stable, smooth path to a minimum.</span></li>
+          <li><span><strong>+</strong> Each step is the "true" gradient.</span></li>
+          <li><span><strong>−</strong> Painfully slow on big datasets.</span></li>
+          <li><span><strong>−</strong> Tends to get stuck in shallow basins.</span></li>
+        </ul>
+      </div>
+
+      <div class="variant sgd">
+        <div class="variant-tag">Variant 02</div>
+        <div class="variant-name">Stochastic GD <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink-faint);font-style:normal;">(SGD)</span></div>
+        <p class="mute" style="font-size:14px;">
+          Compute the gradient using <em>one</em> training example at a time,
+          then step. Fast, jittery, and surprisingly effective.
+        </p>
+        <ul>
+          <li><span><strong>+</strong> Updates immediately — fast feedback.</span></li>
+          <li><span><strong>+</strong> Noise helps escape shallow minima.</span></li>
+          <li><span><strong>−</strong> The path wobbles a lot.</span></li>
+          <li><span><strong>−</strong> Sensitive to outliers and bad samples.</span></li>
+        </ul>
+      </div>
+
+      <div class="variant mini">
+        <div class="variant-tag">Variant 03 · The Default</div>
+        <div class="variant-name">Mini-batch GD</div>
+        <p class="mute" style="font-size:14px;">
+          A small batch (32, 64, 128 examples) per step. Best of both worlds — and
+          what virtually every modern deep learning system actually uses.
+        </p>
+        <ul>
+          <li><span><strong>+</strong> Stable enough, fast enough.</span></li>
+          <li><span><strong>+</strong> Plays beautifully with GPU parallelism.</span></li>
+          <li><span><strong>−</strong> Batch size becomes one more knob to tune.</span></li>
+          <li><span><strong>~</strong> What "SGD" usually means in practice.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 50px;">
+      <div class="panel-header">
+        <h3>Three optimizers walking the same landscape</h3>
+        <span class="tag">animated comparison</span>
+      </div>
+      <div class="panel-body">
+        <div class="legend">
+          <span><span class="line" style="background:var(--teal)"></span> Batch (smooth)</span>
+          <span><span class="line" style="background:var(--violet)"></span> SGD (noisy)</span>
+          <span><span class="line" style="background:var(--accent)"></span> Mini-batch (in between)</span>
+        </div>
+        <canvas id="variantsCanvas" class="viz" height="360"></canvas>
+        <div class="controls">
+          <button id="variantsRestartBtn" class="primary">Restart race</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ============================================================
+     10 — CLOSER
+============================================================ -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">10 · The Bigger Picture</span>
+    <h2>From parabolas to <em>GPT-scale models.</em></h2>
+    <p class="lead">
+      The ball you've been watching roll down toy curves? It's the same
+      algorithm — at staggering scale — that trains every neural network
+      from image classifiers to language models.
+    </p>
+    <div class="col-2">
+      <div>
+        <p>
+          In a deep network, the "landscape" lives in the space of all weights
+          (millions, often billions, of dimensions). The gradient is computed by
+          an algorithm called <em>backpropagation</em>, which efficiently
+          calculates how each weight contributes to the final error.
+        </p>
+        <p>
+          Then for each weight, the same update rule fires:
+          <span class="mono" style="color:var(--accent)">w ← w − α · ∇L</span>.
+          The same patient, blind, downhill walk. Just running across a
+          landscape no human can visualize, for billions of steps.
+        </p>
+      </div>
+      <div>
+        <p>
+          What changes in practice are the embellishments: momentum (keep moving
+          in directions that have been consistently downhill), adaptive learning
+          rates per weight (Adam, RMSprop), gradient clipping (don't let any
+          step get too big), and learning rate schedules (start bold, get
+          careful).
+        </p>
+        <p>
+          But underneath, it's the algorithm you just watched in the playground.
+          A ball on a hill, taking one step at a time, looking only at its feet.
+        </p>
+      </div>
+    </div>
+
+    <div class="insight" style="margin-top: 40px; font-size: 22px;">
+      Every time a model gets smarter — a chatbot improves, a medical scanner
+      gets better at spotting tumors, a translation gets more fluent — it's
+      because somewhere a gradient was computed, and a weight took a tiny step
+      downhill.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong style="color:var(--ink)">Gradient Descent.</strong> An interactive explainer.</p>
+    <p style="color:var(--ink-faint)">Based on neural network course materials · Built to be experimented with.</p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   UTILITIES
+============================================================ */
+const TAU = Math.PI * 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function drawGrid(ctx, w, h, opts = {}) {
+  const spacing = opts.spacing || 40;
+  ctx.strokeStyle = opts.color || 'rgba(240,235,224,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= w; x += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y <= h; y += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+}
+
+/* ============================================================
+   HERO ANIMATION — a ball perpetually finding the minimum
+============================================================ */
+(function hero() {
+  const canvas = document.getElementById('heroCanvas');
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const ctx = canvas.getContext('2d');
+  // Loss surface in screen coords: y = curve(x)
+  // Use a smooth multi-modal function
+  let phase = 0;
+  let w = 0;          // current weight (screen x)
+  let resetTimer = 0;
+
+  function f(x, W, H) {
+    // Two-well landscape — global min in center
+    const cx = W / 2;
+    const norm = (x - cx) / W * 6;
+    const v = 0.3 * norm * norm + 0.45 * Math.sin(norm * 1.4);
+    // map back to screen
+    return H * 0.55 + v * H * 0.18;
+  }
+  function fprime(x, W, H, eps = 1) {
+    return (f(x + eps, W, H) - f(x - eps, W, H)) / (2 * eps);
+  }
+
+  function frame() {
+    const W = window.innerWidth, H = window.innerHeight;
+    ctx.clearRect(0,0,W,H);
+
+    // subtle grid
+    drawGrid(ctx, W, H, { spacing: 60, color: 'rgba(240,235,224,0.025)' });
+
+    // draw curve
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 4) {
+      const y = f(x, W, H);
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(93, 212, 207, 0.4)');
+    grad.addColorStop(1, 'rgba(93, 212, 207, 0)');
+    ctx.strokeStyle = 'rgba(93, 212, 207, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // simulate ball
+    if (resetTimer > 0) {
+      resetTimer--;
+      if (resetTimer === 0) {
+        w = Math.random() * W * 0.3 + (Math.random() < 0.5 ? 0 : W * 0.7);
+      }
+    } else {
+      const g = fprime(w, W, H);
+      const lr = 8;
+      w -= lr * g;
+      // detect near-minimum
+      if (Math.abs(g) < 0.005) resetTimer = 60;
+    }
+
+    // draw the ball
+    const y = f(w, W, H);
+    ctx.beginPath();
+    ctx.arc(w, y - 8, 6, 0, TAU);
+    ctx.fillStyle = 'rgba(240, 179, 95, 0.9)';
+    ctx.shadowColor = 'rgba(240, 179, 95, 0.7)';
+    ctx.shadowBlur = 24;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // trail
+    ctx.beginPath();
+    ctx.arc(w, y - 8, 14, 0, TAU);
+    ctx.strokeStyle = 'rgba(240, 179, 95, 0.2)';
+    ctx.stroke();
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ============================================================
+   2 — LANDSCAPE: a simple labeled loss curve
+============================================================ */
+(function landscape() {
+  const canvas = document.getElementById('landscapeCanvas');
+  const { ctx, w, h } = setupCanvas(canvas);
+
+  const margin = { l: 50, r: 30, t: 30, b: 40 };
+  const plotW = w - margin.l - margin.r;
+  const plotH = h - margin.t - margin.b;
+
+  // f(w) = (w-5)^2 / 4 + 1, on domain [0,10]
+  const fn = x => Math.pow(x - 5, 2) / 4 + 1;
+  const xMin = 0, xMax = 10, yMin = 0, yMax = 8;
+  const X = x => margin.l + (x - xMin) / (xMax - xMin) * plotW;
+  const Y = y => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+
+  // grid
+  ctx.strokeStyle = 'rgba(240,235,224,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo(X(i), margin.t);
+    ctx.lineTo(X(i), margin.t + plotH);
+    ctx.stroke();
+  }
+  for (let i = 0; i <= 8; i += 2) {
+    ctx.beginPath();
+    ctx.moveTo(margin.l, Y(i));
+    ctx.lineTo(margin.l + plotW, Y(i));
+    ctx.stroke();
+  }
+
+  // axes labels
+  ctx.fillStyle = '#5e5b52';
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.fillText('loss', margin.l - 38, margin.t + 8);
+  ctx.fillText('weight →', margin.l + plotW - 70, margin.t + plotH + 26);
+
+  // draw curve
+  ctx.beginPath();
+  for (let x = xMin; x <= xMax; x += 0.05) {
+    const px = X(x), py = Y(fn(x));
+    if (x === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = '#5dd4cf';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // shade under curve
+  ctx.lineTo(X(xMax), Y(yMin));
+  ctx.lineTo(X(xMin), Y(yMin));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(93, 212, 207, 0.07)';
+  ctx.fill();
+
+  // mark the minimum
+  ctx.beginPath();
+  ctx.arc(X(5), Y(fn(5)), 6, 0, TAU);
+  ctx.fillStyle = '#f0b35f';
+  ctx.shadowColor = 'rgba(240,179,95,0.6)';
+  ctx.shadowBlur = 14;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#f0b35f';
+  ctx.font = 'italic 13px Fraunces, serif';
+  ctx.fillText('the goal: find this point', X(5) + 14, Y(fn(5)) - 8);
+
+  // mark a "bad" point
+  ctx.beginPath();
+  ctx.arc(X(1.2), Y(fn(1.2)), 5, 0, TAU);
+  ctx.fillStyle = '#e07a7a';
+  ctx.fill();
+  ctx.fillStyle = '#e07a7a';
+  ctx.font = 'italic 12px Fraunces, serif';
+  ctx.fillText('bad weights', X(1.2) + 10, Y(fn(1.2)) - 6);
+
+  ctx.beginPath();
+  ctx.arc(X(8.5), Y(fn(8.5)), 5, 0, TAU);
+  ctx.fillStyle = '#e07a7a';
+  ctx.fill();
+  ctx.fillStyle = '#e07a7a';
+  ctx.fillText('also bad', X(8.5) + 10, Y(fn(8.5)) - 6);
+})();
+
+/* ============================================================
+   3 — GRADIENT INTUITION: drag the dot, see the tangent
+============================================================ */
+(function gradientDemo() {
+  const canvas = document.getElementById('gradientCanvas');
+  const wOut = document.getElementById('gradW');
+  const gOut = document.getElementById('gradV');
+  const { ctx, w: W, h: H } = setupCanvas(canvas);
+
+  const margin = { l: 30, r: 30, t: 30, b: 30 };
+  const plotW = W - margin.l - margin.r;
+  const plotH = H - margin.t - margin.b;
+  const xMin = 0, xMax = 10, yMin = 0, yMax = 8;
+  const X = x => margin.l + (x - xMin) / (xMax - xMin) * plotW;
+  const Y = y => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+  const invX = px => (px - margin.l) / plotW * (xMax - xMin) + xMin;
+
+  const fn = x => Math.pow(x - 5, 2) / 4 + 1;
+  const dfn = x => (x - 5) / 2;
+
+  let dotX = 2.5;
+  let dragging = false;
+
+  function render() {
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.strokeStyle = 'rgba(240,235,224,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+      ctx.beginPath();
+      ctx.moveTo(X(i), margin.t); ctx.lineTo(X(i), margin.t + plotH); ctx.stroke();
+    }
+    for (let i = 0; i <= 8; i++) {
+      ctx.beginPath();
+      ctx.moveTo(margin.l, Y(i)); ctx.lineTo(margin.l + plotW, Y(i)); ctx.stroke();
+    }
+
+    // curve
+    ctx.beginPath();
+    for (let x = xMin; x <= xMax; x += 0.05) {
+      const px = X(x), py = Y(fn(x));
+      if (x === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#5dd4cf';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // tangent line at dotX
+    const slope = dfn(dotX);
+    const tangentColor = Math.abs(slope) < 0.1 ? '#f0b35f' : (slope < 0 ? '#e07a7a' : '#5dd4cf');
+    const tx1 = dotX - 1.6, tx2 = dotX + 1.6;
+    const ty1 = fn(dotX) + slope * (tx1 - dotX);
+    const ty2 = fn(dotX) + slope * (tx2 - dotX);
+    ctx.beginPath();
+    ctx.moveTo(X(tx1), Y(ty1));
+    ctx.lineTo(X(tx2), Y(ty2));
+    ctx.strokeStyle = tangentColor;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // arrow head at upslope direction
+    const dir = slope > 0 ? 1 : -1;
+    const arrowX = dotX + 1.6 * dir;
+    const arrowY = fn(dotX) + slope * (arrowX - dotX);
+    if (Math.abs(slope) > 0.1) {
+      const ang = Math.atan2(Y(arrowY) - Y(fn(dotX)), X(arrowX) - X(dotX));
+      ctx.save();
+      ctx.translate(X(arrowX), Y(arrowY));
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-10, -5);
+      ctx.lineTo(-10, 5);
+      ctx.closePath();
+      ctx.fillStyle = tangentColor;
+      ctx.fill();
+      ctx.restore();
+      // label
+      ctx.fillStyle = tangentColor;
+      ctx.font = 'italic 12px Fraunces, serif';
+      ctx.fillText('uphill', X(arrowX) - (dir < 0 ? 50 : -8), Y(arrowY) - 8);
+    } else {
+      ctx.fillStyle = tangentColor;
+      ctx.font = 'italic 13px Fraunces, serif';
+      ctx.fillText('flat ground — at the minimum!', X(dotX) - 80, Y(fn(dotX)) + 32);
+    }
+
+    // the dot
+    ctx.beginPath();
+    ctx.arc(X(dotX), Y(fn(dotX)), 9, 0, TAU);
+    ctx.fillStyle = '#f0b35f';
+    ctx.shadowColor = 'rgba(240,179,95,0.6)';
+    ctx.shadowBlur = 18;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#0b0f1a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // readouts
+    wOut.textContent = dotX.toFixed(2);
+    gOut.textContent = (slope >= 0 ? '+' : '') + slope.toFixed(2);
+  }
+
+  function onPointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    const px = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    dotX = clamp(invX(px), xMin + 0.2, xMax - 0.2);
+    render();
+  }
+
+  canvas.addEventListener('mousedown', e => { dragging = true; onPointer(e); });
+  window.addEventListener('mousemove', e => { if (dragging) onPointer(e); });
+  window.addEventListener('mouseup', () => dragging = false);
+  canvas.addEventListener('touchstart', e => { dragging = true; onPointer(e); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchmove', e => { if (dragging) { onPointer(e); e.preventDefault(); } }, {passive:false});
+  canvas.addEventListener('touchend', () => dragging = false);
+
+  render();
+})();
+
+/* ============================================================
+   5 — PLAYGROUND
+============================================================ */
+(function playground() {
+  const canvas = document.getElementById('playgroundCanvas');
+  const { ctx, w: W, h: H } = setupCanvas(canvas);
+  const lrSlider = document.getElementById('lrSlider');
+  const lrLabel = document.getElementById('lrLabel');
+  const stepBtn = document.getElementById('stepBtn');
+  const runBtn = document.getElementById('runBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const status = document.getElementById('gdStatus');
+  const iterStat = document.getElementById('iterStat');
+  const weightStat = document.getElementById('weightStat');
+  const lossStat = document.getElementById('lossStat');
+  const gradStat = document.getElementById('gradStat');
+
+  const margin = { l: 40, r: 30, t: 30, b: 40 };
+  const plotW = W - margin.l - margin.r;
+  const plotH = H - margin.t - margin.b;
+  const xMin = -6, xMax = 6, yMin = 0, yMax = 12;
+  const X = x => margin.l + (x - xMin) / (xMax - xMin) * plotW;
+  const Y = y => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+  const invX = px => (px - margin.l) / plotW * (xMax - xMin) + xMin;
+
+  // f(w) = 0.3 * w^2 + 1
+  const fn = x => 0.3 * x * x + 1;
+  const dfn = x => 0.6 * x;
+
+  let w = -4.5;
+  let trail = [];
+  let running = false;
+  let iter = 0;
+  let runHandle = null;
+
+  function render() {
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.strokeStyle = 'rgba(240,235,224,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = xMin; i <= xMax; i++) {
+      ctx.beginPath();
+      ctx.moveTo(X(i), margin.t); ctx.lineTo(X(i), margin.t + plotH); ctx.stroke();
+    }
+    for (let i = yMin; i <= yMax; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(margin.l, Y(i)); ctx.lineTo(margin.l + plotW, Y(i)); ctx.stroke();
+    }
+
+    // axis ticks
+    ctx.fillStyle = '#5e5b52';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    for (let i = xMin; i <= xMax; i += 2) {
+      ctx.fillText(i.toString(), X(i), margin.t + plotH + 16);
+    }
+    ctx.textAlign = 'right';
+    for (let i = yMin; i <= yMax; i += 4) {
+      ctx.fillText(i.toString(), margin.l - 6, Y(i) + 3);
+    }
+    ctx.textAlign = 'start';
+
+    // curve
+    ctx.beginPath();
+    for (let x = xMin; x <= xMax; x += 0.05) {
+      const px = X(x), py = Y(fn(x));
+      if (x === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#5dd4cf';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // shade
+    ctx.lineTo(X(xMax), Y(yMin));
+    ctx.lineTo(X(xMin), Y(yMin));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(93, 212, 207, 0.06)';
+    ctx.fill();
+
+    // trail
+    trail.forEach((p, i) => {
+      const alpha = 0.15 + (i / trail.length) * 0.4;
+      ctx.beginPath();
+      ctx.arc(X(p), Y(fn(p)), 4, 0, TAU);
+      ctx.fillStyle = `rgba(168, 164, 150, ${alpha})`;
+      ctx.fill();
+    });
+    // connect trail dots
+    if (trail.length > 0) {
+      ctx.beginPath();
+      ctx.moveTo(X(trail[0]), Y(fn(trail[0])));
+      trail.forEach(p => ctx.lineTo(X(p), Y(fn(p))));
+      ctx.lineTo(X(w), Y(fn(w)));
+      ctx.strokeStyle = 'rgba(240, 179, 95, 0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // tangent
+    const slope = dfn(w);
+    const tx1 = w - 1.5, tx2 = w + 1.5;
+    const ty1 = fn(w) + slope * (tx1 - w);
+    const ty2 = fn(w) + slope * (tx2 - w);
+    ctx.beginPath();
+    ctx.moveTo(X(tx1), Y(ty1));
+    ctx.lineTo(X(tx2), Y(ty2));
+    ctx.strokeStyle = '#3aa8a3';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ball
+    ctx.beginPath();
+    ctx.arc(X(w), Y(fn(w)), 10, 0, TAU);
+    ctx.fillStyle = '#f0b35f';
+    ctx.shadowColor = 'rgba(240,179,95,0.7)';
+    ctx.shadowBlur = 22;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#0b0f1a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // update stats
+    iterStat.textContent = iter;
+    weightStat.textContent = w.toFixed(3);
+    lossStat.textContent = fn(w).toFixed(3);
+    gradStat.textContent = (slope >= 0 ? '+' : '') + slope.toFixed(3);
+  }
+
+  function step() {
+    const lr = parseFloat(lrSlider.value);
+    trail.push(w);
+    if (trail.length > 60) trail.shift();
+    w = w - lr * dfn(w);
+    iter++;
+    // bounds safeguard
+    if (!isFinite(w) || Math.abs(w) > 1000) {
+      stopRunning();
+      status.textContent = 'diverged';
+      status.style.color = '#e07a7a';
+    }
+    render();
+  }
+
+  function startRunning() {
+    if (running) return;
+    running = true;
+    runBtn.textContent = 'Pause';
+    status.textContent = 'running';
+    status.style.color = '';
+    function tick() {
+      if (!running) return;
+      step();
+      // converged?
+      if (Math.abs(dfn(w)) < 0.001) {
+        stopRunning();
+        status.textContent = 'converged';
+        status.style.color = '#5dd4cf';
+        return;
+      }
+      runHandle = setTimeout(() => requestAnimationFrame(tick), 90);
+    }
+    tick();
+  }
+  function stopRunning() {
+    running = false;
+    runBtn.textContent = 'Run';
+    if (runHandle) clearTimeout(runHandle);
+  }
+  function reset() {
+    stopRunning();
+    w = -4.5;
+    trail = [];
+    iter = 0;
+    status.textContent = 'ready';
+    status.style.color = '';
+    render();
+  }
+
+  lrSlider.addEventListener('input', () => {
+    lrLabel.textContent = parseFloat(lrSlider.value).toFixed(2);
+  });
+  stepBtn.addEventListener('click', () => { stopRunning(); step(); });
+  runBtn.addEventListener('click', () => running ? stopRunning() : startRunning());
+  resetBtn.addEventListener('click', reset);
+
+  canvas.addEventListener('click', e => {
+    stopRunning();
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    w = clamp(invX(px), xMin + 0.3, xMax - 0.3);
+    trail = [];
+    iter = 0;
+    status.textContent = 'ready';
+    status.style.color = '';
+    render();
+  });
+
+  lrLabel.textContent = parseFloat(lrSlider.value).toFixed(2);
+  render();
+})();
+
+/* ============================================================
+   6 — LEARNING RATE TRIPTYCH
+============================================================ */
+(function lrTriptych() {
+  const configs = [
+    { id: 'lrSmallCanvas', lr: 0.02, color: '#e07a7a' },
+    { id: 'lrJustCanvas',  lr: 0.30, color: '#5dd4cf' },
+    { id: 'lrBigCanvas',   lr: 1.05, color: '#e07a7a' }
+  ];
+
+  const fn = x => 0.3 * x * x + 1;
+  const dfn = x => 0.6 * x;
+
+  configs.forEach(cfg => {
+    const canvas = document.getElementById(cfg.id);
+    const { ctx, w: W, h: H } = setupCanvas(canvas);
+    cfg.ctx = ctx; cfg.W = W; cfg.H = H;
+
+    cfg.margin = { l: 22, r: 22, t: 18, b: 22 };
+    cfg.plotW = W - cfg.margin.l - cfg.margin.r;
+    cfg.plotH = H - cfg.margin.t - cfg.margin.b;
+    cfg.xMin = -6; cfg.xMax = 6; cfg.yMin = 0; cfg.yMax = 14;
+    cfg.X = x => cfg.margin.l + (x - cfg.xMin) / (cfg.xMax - cfg.xMin) * cfg.plotW;
+    cfg.Y = y => cfg.margin.t + (1 - (y - cfg.yMin) / (cfg.yMax - cfg.yMin)) * cfg.plotH;
+
+    cfg.w = -4.5;
+    cfg.trail = [];
+    cfg.tick = 0;
+    cfg.frozen = false;
+  });
+
+  function renderOne(cfg) {
+    const { ctx, W, H, X, Y, margin, xMin, xMax, yMin, yMax, plotW, plotH } = cfg;
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.strokeStyle = 'rgba(240,235,224,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = xMin; i <= xMax; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(X(i), margin.t); ctx.lineTo(X(i), margin.t + plotH); ctx.stroke();
+    }
+    for (let i = yMin; i <= yMax; i += 4) {
+      ctx.beginPath();
+      ctx.moveTo(margin.l, Y(i)); ctx.lineTo(margin.l + plotW, Y(i)); ctx.stroke();
+    }
+
+    // curve - clip to visible area
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(margin.l, margin.t, plotW, plotH);
+    ctx.clip();
+    ctx.beginPath();
+    for (let x = xMin - 2; x <= xMax + 2; x += 0.05) {
+      const px = X(x), py = Y(fn(x));
+      if (x === xMin - 2) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#5dd4cf';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // trail with connecting segments
+    if (cfg.trail.length > 1) {
+      ctx.beginPath();
+      cfg.trail.forEach((p, i) => {
+        const px = X(p), py = Y(Math.min(fn(p), yMax));
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.strokeStyle = cfg.color + '88';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    cfg.trail.forEach((p, i) => {
+      const alpha = (i / cfg.trail.length) * 0.8 + 0.2;
+      const py = Math.min(fn(p), yMax);
+      ctx.beginPath();
+      ctx.arc(X(p), Y(py), 3.5, 0, TAU);
+      ctx.fillStyle = cfg.color;
+      ctx.globalAlpha = alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // current ball
+    if (Math.abs(cfg.w) <= xMax) {
+      ctx.beginPath();
+      ctx.arc(X(cfg.w), Y(Math.min(fn(cfg.w), yMax)), 7, 0, TAU);
+      ctx.fillStyle = '#f0b35f';
+      ctx.shadowColor = 'rgba(240,179,95,0.7)';
+      ctx.shadowBlur = 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#0b0f1a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else {
+      // off-screen indicator
+      ctx.fillStyle = '#e07a7a';
+      ctx.font = '11px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('→ flew off!', W/2, H/2);
+      ctx.textAlign = 'start';
+    }
+  }
+
+  function stepOne(cfg) {
+    if (cfg.frozen) return;
+    cfg.trail.push(cfg.w);
+    if (cfg.trail.length > 40) cfg.trail.shift();
+    cfg.w = cfg.w - cfg.lr * dfn(cfg.w);
+    cfg.tick++;
+    // freeze when converged or diverged
+    if (Math.abs(dfn(cfg.w)) < 0.002 || Math.abs(cfg.w) > 20) {
+      cfg.frozen = true;
+      setTimeout(() => {
+        cfg.w = -4.5;
+        cfg.trail = [];
+        cfg.frozen = false;
+      }, 2500);
+    }
+  }
+
+  let last = 0;
+  function loop(t) {
+    if (t - last > 200) {
+      configs.forEach(cfg => {
+        stepOne(cfg);
+        renderOne(cfg);
+      });
+      last = t;
+    } else {
+      configs.forEach(cfg => renderOne(cfg));
+    }
+    requestAnimationFrame(loop);
+  }
+  configs.forEach(renderOne);
+  requestAnimationFrame(loop);
+})();
+
+/* ============================================================
+   7 — 2D CONTOUR LANDSCAPE
+============================================================ */
+(function contour() {
+  const canvas = document.getElementById('contourCanvas');
+  const { ctx, w: W, h: H } = setupCanvas(canvas);
+  const stepBtn = document.getElementById('d2StepBtn');
+  const runBtn = document.getElementById('d2RunBtn');
+  const clearBtn = document.getElementById('d2ClearBtn');
+  const lrSlider = document.getElementById('lr2Slider');
+  const lrLabel = document.getElementById('lr2Label');
+  const status = document.getElementById('d2Status');
+
+  // f(x,y) = 0.05*x^2 + 0.15*y^2  (elliptic, biased)
+  // Domain [-10, 10] mapped to canvas
+  function fn(x, y) { return 0.05*x*x + 0.15*y*y; }
+  function gradFn(x, y) { return [0.10*x, 0.30*y]; }
+
+  const xMin = -10, xMax = 10, yMin = -7, yMax = 7;
+  const X = x => (x - xMin) / (xMax - xMin) * W;
+  const Y = y => (1 - (y - yMin) / (yMax - yMin)) * H;
+  const invX = px => px / W * (xMax - xMin) + xMin;
+  const invY = py => (1 - py / H) * (yMax - yMin) + yMin;
+
+  // Render the contour (heatmap) once
+  const heatmap = document.createElement('canvas');
+  heatmap.width = W; heatmap.height = H;
+  const hctx = heatmap.getContext('2d');
+  const imgData = hctx.createImageData(W, H);
+  const data = imgData.data;
+  let maxV = fn(xMin, yMin);
+  let minV = 0;
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const x = invX(px), y = invY(py);
+      const v = fn(x, y);
+      const t = clamp((v - minV) / (maxV - minV), 0, 1);
+      // dark to teal interpolation
+      const idx = (py * W + px) * 4;
+      // base bg #0b0f1a, blend with teal toward edges
+      const r = lerp(11, 30, t);
+      const g = lerp(15, 60, t);
+      const b = lerp(26, 75, t);
+      data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 255;
+    }
+  }
+  hctx.putImageData(imgData, 0, 0);
+
+  // Draw contour rings
+  hctx.strokeStyle = 'rgba(93, 212, 207, 0.25)';
+  hctx.lineWidth = 1;
+  for (let level = 0.5; level <= maxV; level += 1.2) {
+    hctx.beginPath();
+    // f(x,y) = level => 0.05*x^2 + 0.15*y^2 = level => x^2/(level/0.05) + y^2/(level/0.15) = 1
+    const a = Math.sqrt(level / 0.05);
+    const b = Math.sqrt(level / 0.15);
+    for (let t = 0; t <= TAU + 0.05; t += 0.05) {
+      const x = a * Math.cos(t);
+      const y = b * Math.sin(t);
+      const px = X(x), py = Y(y);
+      if (t === 0) hctx.moveTo(px, py); else hctx.lineTo(px, py);
+    }
+    hctx.stroke();
+  }
+  // mark minimum
+  hctx.beginPath();
+  hctx.arc(X(0), Y(0), 4, 0, TAU);
+  hctx.fillStyle = '#f0b35f';
+  hctx.fill();
+
+  // state
+  let balls = [];  // each: {x, y, trail:[], active:bool}
+  let running = false;
+  let runHandle = null;
+
+  function render() {
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(heatmap, 0, 0);
+
+    balls.forEach(b => {
+      // trail
+      if (b.trail.length > 1) {
+        ctx.beginPath();
+        b.trail.forEach((p, i) => {
+          const px = X(p[0]), py = Y(p[1]);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.strokeStyle = '#3aa8a3';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      // ball
+      ctx.beginPath();
+      ctx.arc(X(b.x), Y(b.y), 7, 0, TAU);
+      ctx.fillStyle = '#f0b35f';
+      ctx.shadowColor = 'rgba(240,179,95,0.7)';
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#0b0f1a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  }
+
+  function stepAll() {
+    const lr = parseFloat(lrSlider.value);
+    balls.forEach(b => {
+      if (!b.active) return;
+      const [gx, gy] = gradFn(b.x, b.y);
+      b.trail.push([b.x, b.y]);
+      if (b.trail.length > 200) b.trail.shift();
+      b.x -= lr * gx;
+      b.y -= lr * gy;
+      if (Math.abs(gx) < 0.005 && Math.abs(gy) < 0.005) b.active = false;
+    });
+    render();
+  }
+
+  function startRunning() {
+    if (running || balls.length === 0) return;
+    running = true;
+    runBtn.textContent = 'Pause';
+    status.textContent = 'running';
+    function tick() {
+      if (!running) return;
+      stepAll();
+      if (balls.every(b => !b.active)) {
+        running = false;
+        runBtn.textContent = 'Run';
+        status.textContent = 'converged';
+        return;
+      }
+      runHandle = setTimeout(() => requestAnimationFrame(tick), 60);
+    }
+    tick();
+  }
+  function stopRunning() {
+    running = false;
+    runBtn.textContent = 'Run';
+    if (runHandle) clearTimeout(runHandle);
+  }
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const x = invX(px / (rect.width / W) || px);
+    const y = invY(py / (rect.height / H) || py);
+    balls.push({ x, y, trail: [], active: true });
+    status.textContent = balls.length + ' ball(s)';
+    render();
+  });
+  stepBtn.addEventListener('click', () => { stopRunning(); stepAll(); });
+  runBtn.addEventListener('click', () => running ? stopRunning() : startRunning());
+  clearBtn.addEventListener('click', () => {
+    stopRunning();
+    balls = [];
+    status.textContent = 'contour view';
+    render();
+  });
+  lrSlider.addEventListener('input', () => {
+    lrLabel.textContent = parseFloat(lrSlider.value).toFixed(2);
+  });
+
+  // seed with one example
+  balls.push({ x: -8, y: 5, trail: [], active: true });
+  status.textContent = '1 ball — try click to add more';
+  render();
+})();
+
+/* ============================================================
+   8 — BUMPY (non-convex) LANDSCAPE
+============================================================ */
+(function bumpy() {
+  const canvas = document.getElementById('bumpyCanvas');
+  const { ctx, w: W, h: H } = setupCanvas(canvas);
+  const clearBtn = document.getElementById('bumpyClearBtn');
+  const randomBtn = document.getElementById('bumpyRandomBtn');
+
+  const margin = { l: 30, r: 30, t: 30, b: 40 };
+  const plotW = W - margin.l - margin.r;
+  const plotH = H - margin.t - margin.b;
+  const xMin = -8, xMax = 8, yMin = -2, yMax = 6;
+  const X = x => margin.l + (x - xMin) / (xMax - xMin) * plotW;
+  const Y = y => margin.t + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+  const invX = px => (px - margin.l) / plotW * (xMax - xMin) + xMin;
+
+  // multi-well function
+  function fn(x) {
+    return 0.04 * x * x + Math.sin(x * 0.9) + 0.6 * Math.sin(x * 1.7 + 1.2);
+  }
+  function dfn(x) {
+    return 0.08 * x + 0.9 * Math.cos(x * 0.9) + 0.6 * 1.7 * Math.cos(x * 1.7 + 1.2);
+  }
+
+  let balls = [];  // {x, color, trail, active}
+  const colors = ['#f0b35f', '#5dd4cf', '#b594d6', '#e07a7a', '#a8c97f', '#dca34b', '#6fb3d2'];
+
+  function render() {
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.strokeStyle = 'rgba(240,235,224,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = xMin; i <= xMax; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(X(i), margin.t); ctx.lineTo(X(i), margin.t + plotH); ctx.stroke();
+    }
+    for (let i = yMin; i <= yMax; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(margin.l, Y(i)); ctx.lineTo(margin.l + plotW, Y(i)); ctx.stroke();
+    }
+
+    // curve
+    ctx.beginPath();
+    for (let x = xMin; x <= xMax; x += 0.05) {
+      const px = X(x), py = Y(fn(x));
+      if (x === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#5dd4cf';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // shade
+    ctx.lineTo(X(xMax), Y(yMin));
+    ctx.lineTo(X(xMin), Y(yMin));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(93,212,207,0.05)';
+    ctx.fill();
+
+    // balls + trails
+    balls.forEach(b => {
+      if (b.trail.length > 1) {
+        ctx.beginPath();
+        b.trail.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(X(p), Y(fn(p)));
+          else ctx.lineTo(X(p), Y(fn(p)));
+        });
+        ctx.strokeStyle = b.color + '66';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(X(b.x), Y(fn(b.x)), 6, 0, TAU);
+      ctx.fillStyle = b.color;
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#0b0f1a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+
+    // label minima
+    ctx.fillStyle = '#5e5b52';
+    ctx.font = 'italic 12px Fraunces, serif';
+    ctx.fillText('shallow basin', X(-6.4), Y(fn(-6.4)) + 30);
+    ctx.fillText('the global minimum', X(0.2), Y(fn(0.2)) + 36);
+    ctx.fillText('another minimum', X(5), Y(fn(5)) + 30);
+  }
+
+  function stepBalls() {
+    balls.forEach(b => {
+      if (!b.active) return;
+      b.trail.push(b.x);
+      if (b.trail.length > 100) b.trail.shift();
+      b.x = b.x - 0.15 * dfn(b.x);
+      if (Math.abs(dfn(b.x)) < 0.01) b.active = false;
+    });
+    render();
+  }
+
+  let animHandle = null;
+  function startAnim() {
+    if (animHandle) return;
+    function tick() {
+      stepBalls();
+      if (balls.some(b => b.active)) {
+        animHandle = setTimeout(() => requestAnimationFrame(tick), 60);
+      } else {
+        animHandle = null;
+      }
+    }
+    tick();
+  }
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const x = clamp(invX(px), xMin + 0.5, xMax - 0.5);
+    const color = colors[balls.length % colors.length];
+    balls.push({ x, color, trail: [], active: true });
+    render();
+    startAnim();
+  });
+  clearBtn.addEventListener('click', () => {
+    if (animHandle) { clearTimeout(animHandle); animHandle = null; }
+    balls = [];
+    render();
+  });
+  randomBtn.addEventListener('click', () => {
+    if (animHandle) { clearTimeout(animHandle); animHandle = null; }
+    balls = [];
+    for (let i = 0; i < 5; i++) {
+      const x = lerp(xMin + 1, xMax - 1, Math.random());
+      const color = colors[i % colors.length];
+      balls.push({ x, color, trail: [], active: true });
+    }
+    render();
+    startAnim();
+  });
+
+  // seed
+  balls = [
+    { x: -6, color: colors[0], trail: [], active: true },
+    { x: 6, color: colors[1], trail: [], active: true }
+  ];
+  render();
+  startAnim();
+})();
+
+/* ============================================================
+   9 — VARIANTS RACE
+============================================================ */
+(function variants() {
+  const canvas = document.getElementById('variantsCanvas');
+  const { ctx, w: W, h: H } = setupCanvas(canvas);
+  const restartBtn = document.getElementById('variantsRestartBtn');
+
+  // 2D landscape: same elliptic bowl
+  const xMin = -10, xMax = 10, yMin = -7, yMax = 7;
+  const X = x => (x - xMin) / (xMax - xMin) * W;
+  const Y = y => (1 - (y - yMin) / (yMax - yMin)) * H;
+
+  function trueGrad(x, y) { return [0.1*x, 0.3*y]; }
+  function noisyGrad(x, y, scale) {
+    const [gx, gy] = trueGrad(x, y);
+    return [gx + (Math.random()-0.5)*scale, gy + (Math.random()-0.5)*scale];
+  }
+
+  const lr = 0.15;
+  let walkers;
+
+  function reset() {
+    walkers = [
+      { name: 'Batch',     color: '#5dd4cf', x: -9, y: 5, trail: [], noise: 0,    active: true },
+      { name: 'SGD',       color: '#b594d6', x: -9, y: 5, trail: [], noise: 2.2,  active: true },
+      { name: 'Mini-batch',color: '#f0b35f', x: -9, y: 5, trail: [], noise: 0.6,  active: true }
+    ];
+  }
+  reset();
+
+  function renderHeat() {
+    // simple radial gradient to indicate depth
+    const cx = X(0), cy = Y(0);
+    const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(W, H));
+    grad.addColorStop(0, '#1e2638');
+    grad.addColorStop(1, '#0b0f1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // contour rings
+    ctx.strokeStyle = 'rgba(93,212,207,0.18)';
+    ctx.lineWidth = 1;
+    for (let level = 0.5; level <= 10; level += 1.5) {
+      ctx.beginPath();
+      const a = Math.sqrt(level / 0.05);
+      const b = Math.sqrt(level / 0.15);
+      for (let t = 0; t <= TAU + 0.05; t += 0.05) {
+        const x = a * Math.cos(t);
+        const y = b * Math.sin(t);
+        if (t === 0) ctx.moveTo(X(x), Y(y));
+        else ctx.lineTo(X(x), Y(y));
+      }
+      ctx.stroke();
+    }
+    // min marker
+    ctx.beginPath();
+    ctx.arc(X(0), Y(0), 4, 0, TAU);
+    ctx.fillStyle = '#dca34b';
+    ctx.fill();
+  }
+
+  function render() {
+    renderHeat();
+    walkers.forEach(w => {
+      // trail
+      if (w.trail.length > 1) {
+        ctx.beginPath();
+        w.trail.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(X(p[0]), Y(p[1]));
+          else ctx.lineTo(X(p[0]), Y(p[1]));
+        });
+        ctx.strokeStyle = w.color;
+        ctx.globalAlpha = 0.65;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // current pos
+      ctx.beginPath();
+      ctx.arc(X(w.x), Y(w.y), 6, 0, TAU);
+      ctx.fillStyle = w.color;
+      ctx.shadowColor = w.color;
+      ctx.shadowBlur = 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#0b0f1a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  }
+
+  function step() {
+    walkers.forEach(w => {
+      if (!w.active) return;
+      w.trail.push([w.x, w.y]);
+      if (w.trail.length > 250) w.trail.shift();
+      const [gx, gy] = w.noise > 0 ? noisyGrad(w.x, w.y, w.noise) : trueGrad(w.x, w.y);
+      w.x -= lr * gx;
+      w.y -= lr * gy;
+      if (Math.sqrt(w.x*w.x + w.y*w.y) < 0.2 && w.trail.length > 30) w.active = false;
+    });
+    render();
+  }
+
+  let handle = null;
+  function start() {
+    if (handle) return;
+    function tick() {
+      step();
+      if (walkers.some(w => w.active)) {
+        handle = setTimeout(() => requestAnimationFrame(tick), 70);
+      } else {
+        handle = null;
+      }
+    }
+    tick();
+  }
+
+  restartBtn.addEventListener('click', () => {
+    if (handle) { clearTimeout(handle); handle = null; }
+    reset();
+    render();
+    setTimeout(start, 300);
+  });
+
+  render();
+  // start when scrolled into view
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        start();
+        observer.disconnect();
+      }
+    });
+  }, { threshold: 0.3 });
+  observer.observe(canvas);
+})();
+
+</script>
+</body>
+</html>

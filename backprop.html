@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backpropagation, step by step</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4ede0;
+    --paper-deep: #ebe2d1;
+    --ink: #1a1a1f;
+    --ink-soft: #4a4a52;
+    --ink-faint: #8a8a8f;
+    --rule: #c8bfac;
+    --forward: #1e5f7a;
+    --forward-glow: #2d8db0;
+    --backward: #c2402b;
+    --backward-glow: #e85a3e;
+    --gold: #b8893a;
+    --highlight: #fff5d6;
+    --shadow: rgba(26, 26, 31, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+
+  /* paper texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(184, 137, 58, 0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(30, 95, 122, 0.03) 0%, transparent 50%);
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 24px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: clamp(32px, 5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--backward);
+    font-weight: 300;
+  }
+
+  .subtitle {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 680px;
+    line-height: 1.5;
+  }
+
+  /* Step navigation */
+  .stepper {
+    display: flex;
+    gap: 4px;
+    margin: 28px 0 20px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+  }
+
+  .step-pip {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--rule);
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-faint);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-pip:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
+
+  .step-pip.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+    transform: scale(1.1);
+  }
+
+  .step-pip.done {
+    background: var(--ink-soft);
+    color: var(--paper);
+    border-color: var(--ink-soft);
+  }
+
+  .step-pip.phase-back.active,
+  .step-pip.phase-back.done {
+    background: var(--backward);
+    border-color: var(--backward);
+  }
+
+  .step-pip.phase-update.active,
+  .step-pip.phase-update.done {
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+
+  /* Main content area */
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 32px;
+    margin-top: 16px;
+  }
+
+  @media (max-width: 960px) {
+    .stage { grid-template-columns: 1fr; }
+  }
+
+  /* Network panel */
+  .network-panel {
+    background: var(--paper-deep);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 0 var(--shadow);
+    position: relative;
+  }
+
+  .panel-label {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--paper);
+    padding: 0 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  svg.network {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* SVG element styles */
+  .neuron-circle {
+    fill: var(--paper);
+    stroke: var(--ink-soft);
+    stroke-width: 1.5;
+    transition: all 0.4s ease;
+  }
+
+  .neuron-circle.input {
+    fill: var(--paper-deep);
+    stroke: var(--ink);
+  }
+
+  .neuron-circle.active-forward {
+    fill: var(--forward);
+    stroke: var(--forward);
+    filter: drop-shadow(0 0 8px var(--forward-glow));
+  }
+
+  .neuron-circle.active-backward {
+    fill: var(--backward);
+    stroke: var(--backward);
+    filter: drop-shadow(0 0 8px var(--backward-glow));
+  }
+
+  .neuron-circle.dead {
+    fill: var(--paper);
+    stroke: var(--ink-faint);
+    stroke-dasharray: 3 3;
+  }
+
+  .neuron-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    text-anchor: middle;
+    fill: var(--ink);
+    transition: fill 0.3s ease;
+  }
+
+  .neuron-circle.active-forward + .neuron-value,
+  .neuron-circle.active-backward + .neuron-value {
+    fill: var(--paper);
+  }
+
+  .neuron-label {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 14px;
+    text-anchor: middle;
+    fill: var(--ink-soft);
+  }
+
+  .edge {
+    fill: none;
+    stroke: var(--ink-faint);
+    stroke-width: 1.2;
+    transition: all 0.4s ease;
+  }
+
+  .edge.active-forward {
+    stroke: var(--forward);
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 4px var(--forward-glow));
+  }
+
+  .edge.active-backward {
+    stroke: var(--backward);
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 4px var(--backward-glow));
+    stroke-dasharray: 5 3;
+    animation: flow-back 1.2s linear infinite;
+  }
+
+  @keyframes flow-back {
+    0% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 16; }
+  }
+
+  .edge-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-anchor: middle;
+    fill: var(--ink-soft);
+    pointer-events: none;
+  }
+
+  .edge-label-bg {
+    fill: var(--paper-deep);
+    stroke: none;
+  }
+
+  .layer-label {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 13px;
+    text-anchor: middle;
+    fill: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+
+  /* Output box */
+  .output-display {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 14px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+  }
+
+  .output-stat {
+    text-align: center;
+  }
+
+  .output-stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+
+  .output-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .output-stat-value.target { color: var(--gold); }
+  .output-stat-value.loss { color: var(--backward); }
+  .output-stat-value.pred {
+    transition: color 0.4s ease;
+  }
+  .output-stat-value.pred.improved { color: var(--forward); }
+
+  /* Explanation panel */
+  .explain-panel {
+    background: var(--paper-deep);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+    align-self: start;
+  }
+
+  .step-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+  }
+
+  .step-number .phase {
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-left: 8px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .phase.forward { background: var(--forward); color: var(--paper); }
+  .phase.backward { background: var(--backward); color: var(--paper); }
+  .phase.update { background: var(--gold); color: var(--paper); }
+
+  .step-title {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    line-height: 1.15;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    margin-bottom: 14px;
+  }
+
+  .step-intuition {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+  }
+
+  .step-intuition strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .math-block {
+    background: var(--paper);
+    border-left: 2px solid var(--ink);
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+
+  .math-block .var { color: var(--ink); font-weight: 500; }
+  .math-block .num { color: var(--forward); font-weight: 500; }
+  .math-block .num-back { color: var(--backward); font-weight: 500; }
+  .math-block .comment { color: var(--ink-faint); font-style: italic; }
+  .math-block .op { color: var(--ink-soft); }
+  .math-block .arrow { color: var(--gold); font-weight: 700; }
+
+  .math-block .result {
+    border-top: 1px dashed var(--rule);
+    padding-top: 6px;
+    margin-top: 4px;
+    font-weight: 700;
+  }
+
+  .insight {
+    background: var(--highlight);
+    border: 1px solid var(--gold);
+    border-radius: 3px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+  }
+
+  .insight::before {
+    content: 'Key insight';
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    gap: 12px;
+  }
+
+  .nav-btn {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 10px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: var(--ink-soft);
+    transform: translateY(-1px);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .nav-btn.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+  }
+
+  .nav-btn.ghost:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .step-counter {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+  }
+
+  /* Footer note */
+  .footnote {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 760px;
+  }
+
+  .footnote strong {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* Decorative numerals */
+  .deco-numeral {
+    position: absolute;
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 120px;
+    color: var(--paper);
+    line-height: 1;
+    top: 12px;
+    right: 20px;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="eyebrow">A Worked Example · 2-2-1 Network · ReLU Hidden Layer</div>
+    <h1>How a neural network learns from its <em>mistakes</em></h1>
+    <p class="subtitle">
+      Backpropagation is, at heart, just the chain rule from calculus —
+      but watching it work on a real network with real numbers makes it click.
+      Step through each calculation below.
+    </p>
+  </header>
+
+  <div class="stepper" id="stepper"></div>
+
+  <div class="stage">
+
+    <!-- LEFT: Network diagram -->
+    <div class="network-panel">
+      <div class="panel-label">The Network</div>
+
+      <svg class="network" viewBox="0 0 720 400" preserveAspectRatio="xMidYMid meet">
+        <!-- Layer labels -->
+        <text x="80" y="30" class="layer-label">input</text>
+        <text x="360" y="30" class="layer-label">hidden · ReLU</text>
+        <text x="640" y="30" class="layer-label">output</text>
+
+        <!-- Edges (drawn first so neurons sit on top) -->
+        <!-- Input -> Hidden -->
+        <path id="edge-x1-h1" class="edge" d="M 110 150 L 330 150"></path>
+        <path id="edge-x1-h2" class="edge" d="M 110 150 L 330 280"></path>
+        <path id="edge-x2-h1" class="edge" d="M 110 280 L 330 150"></path>
+        <path id="edge-x2-h2" class="edge" d="M 110 280 L 330 280"></path>
+        <!-- Hidden -> Output -->
+        <path id="edge-h1-y" class="edge" d="M 390 150 L 610 215"></path>
+        <path id="edge-h2-y" class="edge" d="M 390 280 L 610 215"></path>
+
+        <!-- Edge weight labels: positioned at midpoints with bg rects -->
+        <!-- x1->h1 mid: (220, 150) -->
+        <rect class="edge-label-bg" x="200" y="142" width="40" height="14" rx="2"></rect>
+        <text x="220" y="153" class="edge-label" id="lbl-w11">w=0.50</text>
+        <!-- x1->h2 mid: (220, 215) -->
+        <rect class="edge-label-bg" x="195" y="190" width="50" height="14" rx="2"></rect>
+        <text x="220" y="201" class="edge-label" id="lbl-w12">w=−0.20</text>
+        <!-- x2->h1 mid: (220, 215) -->
+        <rect class="edge-label-bg" x="195" y="226" width="50" height="14" rx="2"></rect>
+        <text x="220" y="237" class="edge-label" id="lbl-w21">w=0.30</text>
+        <!-- x2->h2 mid: (220, 280) -->
+        <rect class="edge-label-bg" x="200" y="272" width="40" height="14" rx="2"></rect>
+        <text x="220" y="283" class="edge-label" id="lbl-w22">w=0.80</text>
+        <!-- h1->y mid: (500, 182) -->
+        <rect class="edge-label-bg" x="480" y="170" width="40" height="14" rx="2"></rect>
+        <text x="500" y="181" class="edge-label" id="lbl-wo1">w=0.60</text>
+        <!-- h2->y mid: (500, 247) -->
+        <rect class="edge-label-bg" x="480" y="244" width="50" height="14" rx="2"></rect>
+        <text x="500" y="255" class="edge-label" id="lbl-wo2">w=−0.40</text>
+
+        <!-- Neurons -->
+        <!-- Input x1 -->
+        <g>
+          <circle id="n-x1" cx="80" cy="150" r="30" class="neuron-circle input"></circle>
+          <text x="80" y="155" class="neuron-value" id="val-x1">1.00</text>
+          <text x="80" y="200" class="neuron-label">x₁</text>
+        </g>
+        <!-- Input x2 -->
+        <g>
+          <circle id="n-x2" cx="80" cy="280" r="30" class="neuron-circle input"></circle>
+          <text x="80" y="285" class="neuron-value" id="val-x2">0.50</text>
+          <text x="80" y="330" class="neuron-label">x₂</text>
+        </g>
+        <!-- Hidden h1 -->
+        <g>
+          <circle id="n-h1" cx="360" cy="150" r="32" class="neuron-circle"></circle>
+          <text x="360" y="155" class="neuron-value" id="val-h1">—</text>
+          <text x="360" y="200" class="neuron-label">h₁ · b=0.10</text>
+        </g>
+        <!-- Hidden h2 -->
+        <g>
+          <circle id="n-h2" cx="360" cy="280" r="32" class="neuron-circle"></circle>
+          <text x="360" y="285" class="neuron-value" id="val-h2">—</text>
+          <text x="360" y="330" class="neuron-label">h₂ · b=−0.10</text>
+        </g>
+        <!-- Output y -->
+        <g>
+          <circle id="n-y" cx="640" cy="215" r="32" class="neuron-circle"></circle>
+          <text x="640" y="220" class="neuron-value" id="val-y">—</text>
+          <text x="640" y="265" class="neuron-label">ŷ · b=0.20</text>
+        </g>
+
+        <!-- Target indicator -->
+        <g id="target-indicator" opacity="0">
+          <line x1="690" y1="215" x2="700" y2="215" stroke="#b8893a" stroke-width="1.5"/>
+          <text x="708" y="219" font-family="JetBrains Mono" font-size="11" fill="#b8893a" font-weight="700">y=1.00</text>
+        </g>
+      </svg>
+
+      <div class="output-display">
+        <div class="output-stat">
+          <div class="output-stat-label">Prediction ŷ</div>
+          <div class="output-stat-value pred" id="stat-pred">—</div>
+        </div>
+        <div class="output-stat">
+          <div class="output-stat-label">Target y</div>
+          <div class="output-stat-value target">1.00</div>
+        </div>
+        <div class="output-stat">
+          <div class="output-stat-label">Loss ½(y−ŷ)²</div>
+          <div class="output-stat-value loss" id="stat-loss">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Explanation panel -->
+    <div class="explain-panel">
+      <div class="deco-numeral" id="deco-num">0</div>
+      <div class="step-number" id="step-number">Step 0 of 9</div>
+      <h2 class="step-title" id="step-title">Loading…</h2>
+      <p class="step-intuition" id="step-intuition"></p>
+      <div class="math-block" id="step-math"></div>
+      <div class="insight" id="step-insight"></div>
+
+      <div class="controls">
+        <button class="nav-btn ghost" id="btn-prev">← Prev</button>
+        <span class="step-counter" id="step-counter">0 / 9</span>
+        <button class="nav-btn" id="btn-next">Next →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="footnote">
+    <strong>What you just saw.</strong> One forward pass produced a prediction. The squared
+    error told us how wrong we were. Backprop used the chain rule to assign each weight a
+    share of the blame — proportional to how much that weight contributed to the answer.
+    Each weight got nudged in the direction that reduces loss, and the next forward pass
+    landed closer to the target. Repeat thousands of times across thousands of examples,
+    and a network learns.
+  </p>
+
+</div>
+
+<script>
+// ============================================================
+// THE NETWORK — fixed values for the worked example
+// ============================================================
+const NET = {
+  // inputs
+  x1: 1.0, x2: 0.5, target: 1.0,
+  // initial weights (input -> hidden)
+  w11: 0.5,  w12: -0.2,  // x1 -> h1, x1 -> h2
+  w21: 0.3,  w22: 0.8,   // x2 -> h1, x2 -> h2
+  bh1: 0.1,  bh2: -0.1,
+  // hidden -> output
+  wo1: 0.6,  wo2: -0.4,
+  bo: 0.2,
+  // learning rate
+  lr: 0.2
+};
+
+// Computed forward values
+const F = {
+  zh1: NET.w11*NET.x1 + NET.w21*NET.x2 + NET.bh1,   // 0.75
+  zh2: NET.w12*NET.x1 + NET.w22*NET.x2 + NET.bh2,   // 0.10
+};
+F.ah1 = Math.max(0, F.zh1);                          // 0.75
+F.ah2 = Math.max(0, F.zh2);                          // 0.10
+F.ypred = NET.wo1*F.ah1 + NET.wo2*F.ah2 + NET.bo;    // 0.61
+F.loss = 0.5 * Math.pow(NET.target - F.ypred, 2);    // 0.07605
+
+// Backward gradients
+const G = {};
+G.dLdy   = F.ypred - NET.target;                     // -0.39
+G.dLdwo1 = G.dLdy * F.ah1;                           // -0.2925
+G.dLdwo2 = G.dLdy * F.ah2;                           // -0.039
+G.dLdbo  = G.dLdy;                                   // -0.39
+G.dLdah1 = G.dLdy * NET.wo1;                         // -0.234
+G.dLdah2 = G.dLdy * NET.wo2;                         //  0.156
+G.dLdzh1 = G.dLdah1 * (F.zh1 > 0 ? 1 : 0);           // -0.234
+G.dLdzh2 = G.dLdah2 * (F.zh2 > 0 ? 1 : 0);           //  0.156
+G.dLdw11 = G.dLdzh1 * NET.x1;                        // -0.234
+G.dLdw21 = G.dLdzh1 * NET.x2;                        // -0.117
+G.dLdw12 = G.dLdzh2 * NET.x1;                        //  0.156
+G.dLdw22 = G.dLdzh2 * NET.x2;                        //  0.078
+G.dLdbh1 = G.dLdzh1;
+G.dLdbh2 = G.dLdzh2;
+
+// Updated weights
+const U = {
+  w11: NET.w11 - NET.lr*G.dLdw11,   // 0.5468
+  w21: NET.w21 - NET.lr*G.dLdw21,   // 0.3234
+  w12: NET.w12 - NET.lr*G.dLdw12,   //-0.2312
+  w22: NET.w22 - NET.lr*G.dLdw22,   // 0.7844
+  bh1: NET.bh1 - NET.lr*G.dLdbh1,   // 0.1468
+  bh2: NET.bh2 - NET.lr*G.dLdbh2,   //-0.1312
+  wo1: NET.wo1 - NET.lr*G.dLdwo1,   // 0.6585
+  wo2: NET.wo2 - NET.lr*G.dLdwo2,   //-0.3922
+  bo:  NET.bo  - NET.lr*G.dLdbo,    // 0.278
+};
+
+// New forward pass
+const F2 = {};
+F2.zh1 = U.w11*NET.x1 + U.w21*NET.x2 + U.bh1;
+F2.zh2 = U.w12*NET.x1 + U.w22*NET.x2 + U.bh2;
+F2.ah1 = Math.max(0, F2.zh1);
+F2.ah2 = Math.max(0, F2.zh2);
+F2.ypred = U.wo1*F2.ah1 + U.wo2*F2.ah2 + U.bo;
+F2.loss = 0.5 * Math.pow(NET.target - F2.ypred, 2);
+
+// Helper: pretty number
+const n = (v, d=2) => (v >= 0 ? ' ' : '') + v.toFixed(d);
+const nn = (v, d=2) => v.toFixed(d);
+
+// ============================================================
+// STEPS — each defines what to highlight + what to explain
+// ============================================================
+const STEPS = [
+  // STEP 0: Initial state
+  {
+    phase: 'setup',
+    title: 'The setup',
+    intuition: `A tiny network: two inputs feed two hidden ReLU neurons, which feed one output. The weights are arbitrary starting values. We'll feed in <strong>x₁=1.0, x₂=0.5</strong> and try to produce <strong>y=1.0</strong>. The network has no idea what the right answer is — yet.`,
+    math: `<span class="comment">// Initial state — nothing computed yet</span>
+<span class="var">inputs:</span>  x₁ = <span class="num">1.00</span>,  x₂ = <span class="num">0.50</span>
+<span class="var">target:</span>  y  = <span class="num">1.00</span>
+
+<span class="comment">// Six weights + three biases, set arbitrarily</span>
+<span class="var">W (in→hidden):</span>  [[ <span class="num">0.50</span>, <span class="num">-0.20</span>], 
+                  [ <span class="num">0.30</span>,  <span class="num">0.80</span>]]
+<span class="var">W (hid→out):</span>   [ <span class="num">0.60</span>, <span class="num">-0.40</span>]`,
+    insight: `Forward pass produces a prediction. Loss measures how wrong it is. Backprop figures out which weights to blame — and by how much.`,
+    forwardEdges: [], backwardEdges: [],
+    activeNeuronsForward: [], activeNeuronsBackward: [],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'—', h2:'—', y:'—'},
+    edgeLabels: { lblW11:'w=0.50', lblW12:'w=−0.20', lblW21:'w=0.30', lblW22:'w=0.80', lblWo1:'w=0.60', lblWo2:'w=−0.40' },
+    stats: { pred:'—', loss:'—' },
+    targetVisible: true,
+  },
+
+  // STEP 1: Forward to hidden pre-activation
+  {
+    phase: 'forward',
+    title: 'Forward: weighted sums into the hidden layer',
+    intuition: `Each hidden neuron computes a weighted sum of the inputs, plus its bias. This gives us <strong>z</strong> — the pre-activation. Think of it as the neuron's "raw vote" before deciding whether to fire.`,
+    math: `<span class="comment">// h₁'s weighted sum</span>
+z_h₁ = w₁₁·x₁ + w₂₁·x₂ + b_h₁
+     = (<span class="num">0.50</span>)(<span class="num">1.00</span>) + (<span class="num">0.30</span>)(<span class="num">0.50</span>) + <span class="num">0.10</span>
+     <span class="result">= <span class="num">0.75</span></span>
+
+<span class="comment">// h₂'s weighted sum</span>
+z_h₂ = w₁₂·x₁ + w₂₂·x₂ + b_h₂
+     = (<span class="num">−0.20</span>)(<span class="num">1.00</span>) + (<span class="num">0.80</span>)(<span class="num">0.50</span>) + (<span class="num">−0.10</span>)
+     <span class="result">= <span class="num">0.10</span></span>`,
+    insight: `A neuron is just a linear combination of its inputs. Nothing fancy yet — that comes next.`,
+    forwardEdges: ['edge-x1-h1','edge-x1-h2','edge-x2-h1','edge-x2-h2'],
+    activeNeuronsForward: ['n-h1','n-h2'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'z=0.75', h2:'z=0.10', y:'—'},
+    stats: { pred:'—', loss:'—' },
+    targetVisible: true,
+  },
+
+  // STEP 2: Apply ReLU
+  {
+    phase: 'forward',
+    title: 'Forward: ReLU decides who fires',
+    intuition: `ReLU is brutally simple: <strong>if z is positive, pass it through. Otherwise output zero.</strong> Both of our z values are positive, so both neurons fire at their full value. (If z were negative, that neuron would be silent — and during backprop, it would receive zero gradient. That's the famous "dead ReLU".)`,
+    math: `<span class="comment">// ReLU(z) = max(0, z)</span>
+a_h₁ = ReLU(<span class="num">0.75</span>) <span class="arrow">→</span> <span class="num">0.75</span>   <span class="comment">// fires</span>
+a_h₂ = ReLU(<span class="num">0.10</span>) <span class="arrow">→</span> <span class="num">0.10</span>   <span class="comment">// fires (just barely)</span>
+
+<span class="comment">// What ReLU's derivative looks like:</span>
+<span class="comment">//   1 if z > 0</span>
+<span class="comment">//   0 if z ≤ 0   ← this one matters for backprop</span>`,
+    insight: `ReLU's on/off behaviour is what gives the network nonlinearity. Without an activation function, stacked linear layers collapse into a single linear layer — and the whole network can only draw straight lines.`,
+    forwardEdges: [],
+    activeNeuronsForward: ['n-h1','n-h2'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'0.75', h2:'0.10', y:'—'},
+    stats: { pred:'—', loss:'—' },
+    targetVisible: true,
+  },
+
+  // STEP 3: Forward to output
+  {
+    phase: 'forward',
+    title: 'Forward: compute the prediction',
+    intuition: `Same recipe: weighted sum of the hidden activations, plus a bias. No activation function on the output for this simple regression example.`,
+    math: `ŷ = w_o₁·a_h₁ + w_o₂·a_h₂ + b_o
+  = (<span class="num">0.60</span>)(<span class="num">0.75</span>) + (<span class="num">−0.40</span>)(<span class="num">0.10</span>) + <span class="num">0.20</span>
+  = <span class="num">0.45</span> + (<span class="num">−0.04</span>) + <span class="num">0.20</span>
+  <span class="result">= <span class="num">0.61</span></span>
+
+<span class="comment">// Target was 1.00. We're not even close.</span>`,
+    insight: `The forward pass is done. Now we measure the damage.`,
+    forwardEdges: ['edge-h1-y','edge-h2-y'],
+    activeNeuronsForward: ['n-y'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'0.75', h2:'0.10', y:'0.61'},
+    stats: { pred:'0.61', loss:'—' },
+    targetVisible: true,
+  },
+
+  // STEP 4: Compute loss
+  {
+    phase: 'forward',
+    title: 'Compute the loss',
+    intuition: `We use squared error (with a ½ for clean derivatives). The error signal we'll push backward is <strong>∂L/∂ŷ = ŷ − y</strong>. It's <strong>negative</strong>, which tells us: ŷ is too low, so increasing ŷ would reduce loss. Backprop will use this signal to nudge every weight in a helpful direction.`,
+    math: `L = ½(y − ŷ)²
+  = ½(<span class="num">1.00</span> − <span class="num">0.61</span>)²
+  = ½(<span class="num">0.39</span>)²
+  <span class="result">= <span class="num-back">0.0761</span></span>
+
+<span class="comment">// The "error" we send backward:</span>
+∂L/∂ŷ = ŷ − y = <span class="num">0.61</span> − <span class="num">1.00</span>
+       <span class="result">= <span class="num-back">−0.39</span></span>`,
+    insight: `That single number, −0.39, is the seed of everything that follows. Backprop is the art of mechanically distributing it back through the network.`,
+    activeNeuronsForward: ['n-y'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'0.75', h2:'0.10', y:'0.61'},
+    stats: { pred:'0.61', loss:'0.076' },
+    targetVisible: true,
+  },
+
+  // STEP 5: Backprop through output layer
+  {
+    phase: 'backward',
+    title: 'Backward: output-layer gradients',
+    intuition: `For each output weight, the chain rule gives us a beautifully simple formula: <strong>(error signal) × (whatever activation flowed through that edge)</strong>. So h₁ — which fired strongly at 0.75 — gets a bigger share of the gradient than h₂, which barely whispered at 0.10.`,
+    math: `<span class="comment">// Chain rule: ∂L/∂w_o₁ = (∂L/∂ŷ) · (∂ŷ/∂w_o₁)</span>
+<span class="comment">//             = (error signal) · (input on this edge)</span>
+
+∂L/∂w_o₁ = <span class="num-back">(−0.39)</span> · <span class="num">(0.75)</span>  <span class="result">= <span class="num-back">−0.2925</span></span>
+∂L/∂w_o₂ = <span class="num-back">(−0.39)</span> · <span class="num">(0.10)</span>  <span class="result">= <span class="num-back">−0.0390</span></span>
+∂L/∂b_o  = <span class="num-back">(−0.39)</span> · <span class="num">(1)</span>     <span class="result">= <span class="num-back">−0.3900</span></span>
+
+<span class="comment">// w_o₁ gets ~7.5× more blame than w_o₂ — because it carried more signal.</span>`,
+    insight: `Weights that contributed more to the answer get more of the gradient. Backprop's "fairness" is mathematical, not moral: blame flows in proportion to influence.`,
+    backwardEdges: ['edge-h1-y','edge-h2-y'],
+    activeNeuronsBackward: ['n-y'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'0.75', h2:'0.10', y:'δ=−0.39'},
+    edgeLabels: { lblWo1:'∂=−0.293', lblWo2:'∂=−0.039' },
+    stats: { pred:'0.61', loss:'0.076' },
+    targetVisible: true,
+  },
+
+  // STEP 6: Propagate error to hidden activations
+  {
+    phase: 'backward',
+    title: 'Backward: push the error into the hidden layer',
+    intuition: `Now we ask: how much did <em>each hidden neuron's activation</em> contribute to the loss? Same chain rule, mirrored: the error flows backward <strong>along the same edges that carried activation forward</strong>, scaled by each edge's weight. h₂'s weight was negative, which flips the sign of the gradient it receives.`,
+    math: `<span class="comment">// ∂L/∂a_h = (∂L/∂ŷ) · w_o   ← error * weight on the edge</span>
+
+∂L/∂a_h₁ = <span class="num-back">(−0.39)</span> · <span class="num">(0.60)</span>  <span class="result">= <span class="num-back">−0.234</span></span>
+∂L/∂a_h₂ = <span class="num-back">(−0.39)</span> · <span class="num">(−0.40)</span> <span class="result">= <span class="num-back">+0.156</span></span>
+
+<span class="comment">// h₁'s gradient is negative — increasing h₁ would lower the loss.</span>
+<span class="comment">// h₂'s is positive — decreasing h₂ would lower the loss.</span>`,
+    insight: `The same weight that amplified the forward signal also amplifies the backward error. It's symmetrical — and that's not a coincidence, it's the chain rule.`,
+    backwardEdges: ['edge-h1-y','edge-h2-y'],
+    activeNeuronsBackward: ['n-h1','n-h2'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'∂a=−0.234', h2:'∂a=+0.156', y:'δ=−0.39'},
+    stats: { pred:'0.61', loss:'0.076' },
+    targetVisible: true,
+  },
+
+  // STEP 7: Through ReLU
+  {
+    phase: 'backward',
+    title: 'Backward: through ReLU',
+    intuition: `To get from <strong>∂L/∂a</strong> (gradient on activation) to <strong>∂L/∂z</strong> (gradient on pre-activation), we multiply by ReLU's derivative. ReLU's derivative is 1 when z was positive and 0 otherwise. Both our z values were positive, so the gradients pass through unchanged. If a neuron had been silent during forward (z ≤ 0), it would receive <strong>zero</strong> gradient — it can't learn from this example.`,
+    math: `<span class="comment">// ReLU'(z) = 1 if z > 0, else 0</span>
+
+ReLU'(z_h₁=<span class="num">0.75</span>) = <span class="num">1</span>  <span class="comment">// neuron was alive</span>
+ReLU'(z_h₂=<span class="num">0.10</span>) = <span class="num">1</span>  <span class="comment">// neuron was alive</span>
+
+∂L/∂z_h₁ = <span class="num-back">(−0.234)</span> · <span class="num">(1)</span> <span class="result">= <span class="num-back">−0.234</span></span>
+∂L/∂z_h₂ = <span class="num-back">(+0.156)</span> · <span class="num">(1)</span> <span class="result">= <span class="num-back">+0.156</span></span>`,
+    insight: `ReLU's gradient is a binary gate. Silent neurons get no learning signal — which is why deep networks sometimes have "dead" neurons that never wake up.`,
+    activeNeuronsBackward: ['n-h1','n-h2'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'∂z=−0.234', h2:'∂z=+0.156', y:'δ=−0.39'},
+    stats: { pred:'0.61', loss:'0.076' },
+    targetVisible: true,
+  },
+
+  // STEP 8: Hidden layer weight gradients
+  {
+    phase: 'backward',
+    title: 'Backward: gradients on the input-layer weights',
+    intuition: `Same trick as the output layer: each weight's gradient is <strong>(error at the neuron it feeds) × (input it carried forward)</strong>. The chain rule keeps marching backward.`,
+    math: `<span class="comment">// ∂L/∂w = (∂L/∂z of downstream neuron) · (input on this edge)</span>
+
+∂L/∂w₁₁ = <span class="num-back">(−0.234)</span> · <span class="num">(1.00)</span> <span class="result">= <span class="num-back">−0.234</span></span>
+∂L/∂w₂₁ = <span class="num-back">(−0.234)</span> · <span class="num">(0.50)</span> <span class="result">= <span class="num-back">−0.117</span></span>
+∂L/∂w₁₂ = <span class="num-back">(+0.156)</span> · <span class="num">(1.00)</span> <span class="result">= <span class="num-back">+0.156</span></span>
+∂L/∂w₂₂ = <span class="num-back">(+0.156)</span> · <span class="num">(0.50)</span> <span class="result">= <span class="num-back">+0.078</span></span>
+
+<span class="comment">// Biases get the full neuron gradient (no input multiplier):</span>
+∂L/∂b_h₁ = <span class="num-back">−0.234</span>,  ∂L/∂b_h₂ = <span class="num-back">+0.156</span>`,
+    insight: `Every weight in the network now has a gradient. Backprop is done. Notice the pattern: at every layer, gradient = error_at_output × input_at_input. The chain rule is just the same shape repeated.`,
+    backwardEdges: ['edge-x1-h1','edge-x1-h2','edge-x2-h1','edge-x2-h2'],
+    activeNeuronsBackward: ['n-h1','n-h2','n-x1','n-x2'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'∂z=−0.234', h2:'∂z=+0.156', y:'δ=−0.39'},
+    edgeLabels: {
+      lblW11:'∂=−0.234', lblW12:'∂=+0.156',
+      lblW21:'∂=−0.117', lblW22:'∂=+0.078',
+      lblWo1:'∂=−0.293', lblWo2:'∂=−0.039'
+    },
+    stats: { pred:'0.61', loss:'0.076' },
+    targetVisible: true,
+  },
+
+  // STEP 9: Apply updates + new forward pass
+  {
+    phase: 'update',
+    title: 'Update weights, then forward-pass again',
+    intuition: `Gradient descent: <strong>w_new = w_old − η · ∂L/∂w</strong>, where η = 0.2 is the learning rate. We move each weight a small step in the direction that decreases loss. Then we run the network again — and look how much closer the prediction lands to the target.`,
+    math: `<span class="comment">// Update rule, applied to every weight:</span>
+w₁₁: <span class="num">0.50</span> − <span class="num">0.2</span>·(<span class="num-back">−0.234</span>) <span class="arrow">→</span> <span class="num">0.547</span>
+w₁₂: <span class="num">−0.20</span> − <span class="num">0.2</span>·(<span class="num-back">+0.156</span>) <span class="arrow">→</span> <span class="num">−0.231</span>
+w₂₁: <span class="num">0.30</span> − <span class="num">0.2</span>·(<span class="num-back">−0.117</span>) <span class="arrow">→</span> <span class="num">0.323</span>
+w₂₂: <span class="num">0.80</span> − <span class="num">0.2</span>·(<span class="num-back">+0.078</span>) <span class="arrow">→</span> <span class="num">0.784</span>
+w_o₁: <span class="num">0.60</span> − <span class="num">0.2</span>·(<span class="num-back">−0.293</span>) <span class="arrow">→</span> <span class="num">0.659</span>
+w_o₂: <span class="num">−0.40</span> − <span class="num">0.2</span>·(<span class="num-back">−0.039</span>) <span class="arrow">→</span> <span class="num">−0.392</span>
+
+<span class="comment">// Re-run forward pass with new weights:</span>
+ŷ_new = <span class="result"><span class="num">0.830</span></span>   <span class="comment">// was 0.61, target 1.00</span>
+L_new = <span class="result"><span class="num">0.0145</span></span>  <span class="comment">// was 0.0761 — an 81% drop!</span>`,
+    insight: `One pass of forward → loss → backward → update, and the loss dropped from 0.076 to 0.015. Do this for thousands of examples, millions of times, and the network learns. That's the whole game.`,
+    activeNeuronsForward: ['n-y','n-h1','n-h2'],
+    neuronValues: {x1:'1.00', x2:'0.50', h1:'0.86', h2:'0.03', y:'0.83'},
+    edgeLabels: {
+      lblW11:'w=0.55', lblW12:'w=−0.23',
+      lblW21:'w=0.32', lblW22:'w=0.78',
+      lblWo1:'w=0.66', lblWo2:'w=−0.39'
+    },
+    stats: { pred:'0.83', loss:'0.014' },
+    targetVisible: true,
+    improved: true,
+  },
+];
+
+// ============================================================
+// RENDERING
+// ============================================================
+let currentStep = 0;
+
+function renderStepper() {
+  const el = document.getElementById('stepper');
+  el.innerHTML = STEPS.map((s, i) => {
+    const phaseClass = `phase-${s.phase === 'setup' ? 'setup' : s.phase}`;
+    return `<button class="step-pip ${phaseClass}" data-step="${i}">${i}</button>`;
+  }).join('');
+  el.querySelectorAll('.step-pip').forEach(b => {
+    b.addEventListener('click', () => { currentStep = parseInt(b.dataset.step); render(); });
+  });
+}
+
+function render() {
+  const step = STEPS[currentStep];
+
+  // Update stepper pips
+  document.querySelectorAll('.step-pip').forEach((p, i) => {
+    p.classList.toggle('active', i === currentStep);
+    p.classList.toggle('done', i < currentStep);
+  });
+
+  // Update step number / phase tag
+  const phaseTag = step.phase === 'setup' ? '' :
+    `<span class="phase ${step.phase}">${step.phase}</span>`;
+  document.getElementById('step-number').innerHTML =
+    `Step ${currentStep} of ${STEPS.length - 1} ${phaseTag}`;
+  document.getElementById('deco-num').textContent = currentStep;
+  document.getElementById('step-counter').textContent =
+    `${currentStep} / ${STEPS.length - 1}`;
+
+  // Update title, intuition, math, insight
+  document.getElementById('step-title').textContent = step.title;
+  document.getElementById('step-intuition').innerHTML = step.intuition;
+  document.getElementById('step-math').innerHTML = step.math;
+  document.getElementById('step-insight').innerHTML = step.insight;
+
+  // Update nav buttons
+  document.getElementById('btn-prev').disabled = currentStep === 0;
+  document.getElementById('btn-next').disabled = currentStep === STEPS.length - 1;
+
+  // Reset all neurons & edges
+  document.querySelectorAll('.neuron-circle').forEach(c => {
+    c.classList.remove('active-forward', 'active-backward', 'dead');
+  });
+  document.querySelectorAll('.edge').forEach(e => {
+    e.classList.remove('active-forward', 'active-backward');
+  });
+
+  // Apply forward highlighting
+  (step.forwardEdges || []).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active-forward');
+  });
+  (step.activeNeuronsForward || []).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active-forward');
+  });
+
+  // Apply backward highlighting
+  (step.backwardEdges || []).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active-backward');
+  });
+  (step.activeNeuronsBackward || []).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active-backward');
+  });
+
+  // Update neuron value labels
+  const v = step.neuronValues || {};
+  if (v.x1 !== undefined) document.getElementById('val-x1').textContent = v.x1;
+  if (v.x2 !== undefined) document.getElementById('val-x2').textContent = v.x2;
+  if (v.h1 !== undefined) document.getElementById('val-h1').textContent = v.h1;
+  if (v.h2 !== undefined) document.getElementById('val-h2').textContent = v.h2;
+  if (v.y  !== undefined) document.getElementById('val-y').textContent  = v.y;
+
+  // Update edge weight labels (carry forward from prior steps if not specified)
+  const baseLabels = { lblW11:'w=0.50', lblW12:'w=−0.20', lblW21:'w=0.30', lblW22:'w=0.80', lblWo1:'w=0.60', lblWo2:'w=−0.40' };
+  // Walk through steps up to current to figure out the most recent label state
+  let labelState = {...baseLabels};
+  for (let i = 0; i <= currentStep; i++) {
+    if (STEPS[i].edgeLabels) labelState = {...labelState, ...STEPS[i].edgeLabels};
+  }
+  document.getElementById('lbl-w11').textContent = labelState.lblW11;
+  document.getElementById('lbl-w12').textContent = labelState.lblW12;
+  document.getElementById('lbl-w21').textContent = labelState.lblW21;
+  document.getElementById('lbl-w22').textContent = labelState.lblW22;
+  document.getElementById('lbl-wo1').textContent = labelState.lblWo1;
+  document.getElementById('lbl-wo2').textContent = labelState.lblWo2;
+
+  // Update output stats
+  if (step.stats) {
+    const predEl = document.getElementById('stat-pred');
+    predEl.textContent = step.stats.pred;
+    predEl.classList.toggle('improved', !!step.improved);
+    document.getElementById('stat-loss').textContent = step.stats.loss;
+  }
+
+  // Target indicator
+  document.getElementById('target-indicator').setAttribute('opacity', step.targetVisible ? '1' : '0');
+}
+
+// Wire up controls
+document.getElementById('btn-prev').addEventListener('click', () => {
+  if (currentStep > 0) { currentStep--; render(); }
+});
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (currentStep < STEPS.length - 1) { currentStep++; render(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft' && currentStep > 0) { currentStep--; render(); }
+  if (e.key === 'ArrowRight' && currentStep < STEPS.length - 1) { currentStep++; render(); }
+});
+
+renderStepper();
+render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regularization — An Interactive Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f1ebdc;
+    --bg-grain: #ecdfc8;
+    --surface: #faf5e8;
+    --surface-2: #f5edda;
+    --ink: #1c1a17;
+    --ink-soft: #3d3a35;
+    --muted: #7a7468;
+    --rule: #d6cdb5;
+    --rule-soft: #e3dcc6;
+    --accent: #b8431c;
+    --accent-soft: #d96d3e;
+    --accent-bg: rgba(184, 67, 28, 0.08);
+    --teal: #1f5650;
+    --teal-soft: #4a8f86;
+    --gold: #b88a2e;
+    --shadow: 0 1px 0 rgba(28,26,23,0.05), 0 8px 24px -16px rgba(28,26,23,0.15);
+    --shadow-strong: 0 2px 0 rgba(28,26,23,0.06), 0 24px 48px -28px rgba(28,26,23,0.25);
+    --grain-blend: multiply;
+    --grain-opacity: 0.4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161410;
+      --bg-grain: #1d1a14;
+      --surface: #1f1c16;
+      --surface-2: #25211a;
+      --ink: #ede4cf;
+      --ink-soft: #c8bfa9;
+      --muted: #8c8472;
+      --rule: #3a352b;
+      --rule-soft: #2c2820;
+      --accent: #ff9261;
+      --accent-soft: #ffb085;
+      --accent-bg: rgba(255, 146, 97, 0.12);
+      --teal: #6fc4b5;
+      --teal-soft: #93d6ca;
+      --gold: #e0b765;
+      --shadow: 0 1px 0 rgba(0,0,0,0.4), 0 8px 24px -16px rgba(0,0,0,0.6);
+      --shadow-strong: 0 2px 0 rgba(0,0,0,0.5), 0 24px 48px -28px rgba(0,0,0,0.8);
+      --grain-blend: screen;
+      --grain-opacity: 0.06;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "DM Sans", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.05 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: var(--grain-blend);
+    opacity: var(--grain-opacity);
+    z-index: 0;
+  }
+  main, header { position: relative; z-index: 1; }
+
+  /* ====== HEADER ====== */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .brand .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .brand h1 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 80, "SOFT" 50;
+    font-weight: 500;
+    font-style: italic;
+    font-size: 22px;
+    margin: 0;
+    color: var(--ink);
+  }
+  .toggle {
+    display: inline-flex;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 4px;
+    position: relative;
+  }
+  .toggle button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 7px 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 999px;
+    transition: color 120ms ease;
+  }
+  .toggle button.active {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  @media (prefers-color-scheme: dark) {
+    .toggle button.active { background: var(--accent); color: #1a1410; }
+  }
+
+  /* ====== LAYOUT ====== */
+  .learner {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 32px 120px;
+  }
+  .presenter {
+    min-height: calc(100vh - 56px);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 18px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  [hidden] { display: none !important; }
+
+  /* ====== LEARNER TYPOGRAPHY ====== */
+  .hero {
+    margin-bottom: 56px;
+    padding-bottom: 36px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .hero .kicker {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  .hero h2 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+    font-weight: 400;
+    font-size: clamp(40px, 6vw, 64px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin: 0 0 24px;
+    color: var(--ink);
+  }
+  .hero h2 em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    color: var(--accent);
+  }
+  .hero .lede {
+    font-size: 20px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 60ch;
+    font-weight: 350;
+  }
+  .meta {
+    display: flex;
+    gap: 32px;
+    margin-top: 28px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta strong { color: var(--ink); font-weight: 500; }
+
+  .learner h3 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 36;
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 64px 0 18px;
+    color: var(--ink);
+    position: relative;
+  }
+  .learner h3 .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .learner h4 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 24;
+    font-weight: 500;
+    font-style: italic;
+    font-size: 22px;
+    margin: 36px 0 12px;
+    color: var(--ink);
+  }
+  .learner p {
+    margin: 0 0 18px;
+    color: var(--ink-soft);
+  }
+  .learner p strong { color: var(--ink); font-weight: 600; }
+  .learner a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .learner ul { padding-left: 22px; color: var(--ink-soft); }
+  .learner li { margin: 6px 0; }
+  .learner code, .learner kbd {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.88em;
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+  .learner em.term {
+    font-style: italic;
+    font-family: "Fraunces", serif;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .callout {
+    border-left: 2px solid var(--accent);
+    padding: 12px 0 12px 22px;
+    margin: 28px 0;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink);
+    font-style: italic;
+  }
+  .callout .by {
+    display: block;
+    margin-top: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-style: normal;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .equation {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin: 22px 0;
+    font-family: "Fraunces", serif;
+    font-size: 19px;
+    color: var(--ink);
+    line-height: 1.4;
+    text-align: center;
+    font-style: italic;
+    box-shadow: var(--shadow);
+  }
+  .equation .label {
+    display: block;
+    margin-top: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-style: normal;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .equation sub { font-size: 0.65em; }
+  .equation sup { font-size: 0.65em; }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 28px 0;
+  }
+  .compare > div {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 20px;
+    border-radius: 6px;
+  }
+  .compare h5 {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 18px;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .compare p { margin: 0; font-size: 15px; line-height: 1.5; }
+  .compare .l1 h5 { color: var(--accent); }
+  .compare .l2 h5 { color: var(--teal); }
+
+  /* ====== WIDGET ====== */
+  .widget {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow-strong);
+    margin: 36px 0;
+  }
+  .widget-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--surface-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .widget-title {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .widget-title strong { color: var(--ink); font-weight: 500; }
+  .method-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .method-tabs button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 6px 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 999px;
+    transition: all 120ms ease;
+  }
+  .method-tabs button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    .method-tabs button.active { color: #1a1410; }
+  }
+  .method-tabs button:hover:not(.active) { color: var(--ink); }
+
+  .widget-body {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 0;
+  }
+  .widget-plot {
+    padding: 18px;
+    border-right: 1px solid var(--rule-soft);
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+  }
+  .widget-side {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .plot-svg { width: 100%; height: 100%; min-height: 320px; flex: 1; }
+
+  .slider-block label {
+    display: block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .slider-block label span { color: var(--accent); font-weight: 500; }
+  .slider-block input[type=range] {
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .slider-block input[type=range]::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--rule);
+    border-radius: 999px;
+  }
+  .slider-block input[type=range]::-moz-range-track {
+    height: 3px;
+    background: var(--rule);
+    border-radius: 999px;
+  }
+  .slider-block input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: -6.5px;
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .slider-block input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    padding: 10px 12px;
+    border-radius: 6px;
+  }
+  .stat .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .stat .value {
+    font-family: "Fraunces", serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat.bad .value { color: var(--accent); }
+  .stat.good .value { color: var(--teal); }
+
+  .coef-chart {
+    flex: 1;
+    min-height: 110px;
+  }
+  .coef-chart-title {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .reset-btn {
+    appearance: none;
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    color: var(--ink-soft);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .reset-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ====== MINI WIDGETS (Dropout, BatchNorm) ====== */
+  .mini {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 24px 0;
+  }
+  .mini-title {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .nn-svg { width: 100%; height: 180px; }
+  .mini-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+  }
+  .mini-controls .slider-block { flex: 1; margin: 0; }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  @media (prefers-color-scheme: dark) { .btn { color: #1a1410; } }
+  .btn:hover { background: var(--accent-soft); }
+
+  /* ====== PRESENTER VIEW ====== */
+  .presenter-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .presenter-eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .presenter-title {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 100;
+    font-weight: 400;
+    font-size: clamp(36px, 5vw, 56px);
+    margin: 4px 0 0;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .presenter-title em { font-style: italic; color: var(--accent); }
+  .presenter-caption {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 70ch;
+  }
+  .presenter-widget {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-strong);
+    min-height: 0;
+  }
+  .presenter-widget .widget-header {
+    padding: 16px 24px;
+  }
+  .presenter-widget .method-tabs button {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  .presenter-widget .widget-body {
+    grid-template-columns: 1.8fr 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+  .presenter-widget .widget-plot,
+  .presenter-widget .widget-side {
+    padding: 24px;
+  }
+  .presenter-widget .plot-svg { min-height: 0; }
+  .presenter-widget .stat .value { font-size: 28px; }
+  .presenter-widget .slider-block label { font-size: 13px; }
+  .presenter-widget .reset-btn { font-size: 13px; padding: 10px 18px; }
+
+  /* responsive */
+  @media (max-width: 760px) {
+    header { padding: 12px 18px; }
+    .brand h1 { font-size: 18px; }
+    .brand .eyebrow { display: none; }
+    .learner { padding: 32px 22px 80px; }
+    .widget-body { grid-template-columns: 1fr; }
+    .widget-plot { border-right: 0; border-bottom: 1px solid var(--rule-soft); }
+    .compare { grid-template-columns: 1fr; }
+    .presenter-widget .widget-body { grid-template-columns: 1fr; }
+  }
+
+  /* SVG element styling — uses CSS vars so dark mode just works */
+  .axis line, .axis path { stroke: var(--rule); fill: none; }
+  .axis text { fill: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 10px; }
+  .grid line { stroke: var(--rule-soft); }
+  .true-curve { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .fit-curve { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+  .data-point { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+  .coef-bar { fill: var(--accent); }
+  .coef-bar.zero { fill: var(--rule); }
+  .coef-axis { stroke: var(--rule); }
+  .coef-label { fill: var(--muted); font-family: "JetBrains Mono", monospace; font-size: 9px; }
+  .nn-node { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; transition: opacity 200ms, fill 200ms; }
+  .nn-node.dropped { opacity: 0.18; fill: var(--rule); }
+  .nn-edge { stroke: var(--ink); stroke-width: 1; opacity: 0.3; transition: opacity 200ms; }
+  .nn-edge.dropped { opacity: 0.05; }
+  .es-curve-train { fill: none; stroke: var(--teal); stroke-width: 2; }
+  .es-curve-val { fill: none; stroke: var(--accent); stroke-width: 2; }
+  .es-stop-line { stroke: var(--ink); stroke-dasharray: 3 3; stroke-width: 1.5; }
+  .legend-dot { font-family: "JetBrains Mono", monospace; font-size: 11px; fill: var(--ink-soft); }
+
+  /* Tooltip / annotation */
+  .annotation {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 13px;
+    fill: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="eyebrow">An interactive explainer</span>
+    <h1>Regularization</h1>
+  </div>
+  <div class="toggle" role="tablist" aria-label="View mode">
+    <button data-view="learner" class="active" aria-pressed="true">Learner</button>
+    <button data-view="presenter" aria-pressed="false">Presenter</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================== LEARNER VIEW ============================== -->
+<article class="learner" id="learner-view">
+
+  <section class="hero">
+    <div class="kicker">Neural Networks · Chapter 7</div>
+    <h2>How to stop a network from <em>memorizing</em>.</h2>
+    <p class="lede">
+      A neural network with enough parameters can fit anything &mdash; including the noise.
+      Regularization is the discipline of giving a model just enough freedom to learn the
+      pattern, but not so much that it learns the accidents.
+    </p>
+    <div class="meta">
+      <span><strong>Topic</strong> Overfitting · Penalties · Dropout · BatchNorm · Early Stopping</span>
+    </div>
+  </section>
+
+  <h3><span class="num">§ 1 / The Problem</span>The student with photographic memory</h3>
+
+  <p>
+    Imagine a student preparing for an exam. Two strategies are available. The first student
+    <strong>memorizes</strong> every practice problem verbatim — every typo, every coincidence,
+    every detail. The second student learns the <strong>underlying ideas</strong> and is willing
+    to be a little wrong on the practice set if it means being right on the real exam.
+  </p>
+
+  <p>
+    A neural network with millions of parameters is, by default, the first student. It has
+    enough capacity to bend itself into whatever shape perfectly explains the training data,
+    noise and all. We call this <em class="term">overfitting</em>. The model achieves a tiny
+    training error and a terrible test error — it learned the practice set, not the subject.
+  </p>
+
+  <div class="callout">
+    Deep neural networks are prone to overfitting because they try to capture complex patterns
+    in the data — and in doing so, they capture the noise.
+    <span class="by">— The core motivation for everything that follows</span>
+  </div>
+
+  <p>
+    The widget below shows this in its purest form. We have a true function (the dashed line)
+    that we cannot see directly &mdash; we only get to observe noisy samples of it (the dots).
+    We then fit a flexible 9-degree polynomial to those samples. Try the <strong>None</strong> tab
+    and watch what happens: the curve writhes through every single dot, achieving near-zero training
+    error, while completely losing sight of the true underlying shape.
+  </p>
+
+  <p>Then switch tabs and add some regularization. Watch the curve calm down.</p>
+
+  <!-- ===== MAIN WIDGET (embedded) ===== -->
+  <div class="widget" id="main-widget-learner">
+    <div class="widget-header">
+      <div class="widget-title"><strong>Polynomial fit</strong> · degree 9 · 15 noisy samples</div>
+      <div class="method-tabs" role="tablist">
+        <button data-method="none" class="active">None</button>
+        <button data-method="l2">L2 / Ridge</button>
+        <button data-method="l1">L1 / Lasso</button>
+        <button data-method="early">Early Stop</button>
+      </div>
+    </div>
+    <div class="widget-body">
+      <div class="widget-plot">
+        <svg class="plot-svg" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="widget-side">
+        <div class="slider-block">
+          <label>
+            <span data-role="param-name">Regularization λ</span>
+            <span data-role="param-value">0.000</span>
+          </label>
+          <input type="range" min="0" max="1000" value="0" data-role="param-slider">
+        </div>
+        <div class="stats">
+          <div class="stat" data-stat="train">
+            <div class="label">Training error</div>
+            <div class="value" data-role="train-mse">—</div>
+          </div>
+          <div class="stat" data-stat="test">
+            <div class="label">Test error</div>
+            <div class="value" data-role="test-mse">—</div>
+          </div>
+        </div>
+        <div class="coef-chart-title">Coefficient magnitudes · w<sub>0</sub> &hellip; w<sub>9</sub></div>
+        <svg class="coef-chart" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet"></svg>
+        <button class="reset-btn" data-role="resample">↻ Resample data</button>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    <strong>What you should see.</strong> Under <em class="term">None</em>, the curve is wild &mdash;
+    training error tiny, test error huge. Under <em class="term">L2</em>, as you raise λ, the curve
+    smooths out and test error drops, then eventually rises again if λ gets too aggressive. Under
+    <em class="term">L1</em>, watch the coefficient bars: many of them snap to exactly zero, leaving
+    a sparse model. Under <em class="term">Early Stop</em>, the slider controls training iterations
+    &mdash; a few iterations underfit, a lot overfit, and there's a sweet spot in between.
+  </p>
+
+  <p>
+    That last sentence is essentially the whole subject of regularization. Everything that follows
+    is mechanism &mdash; the <em>how</em> behind that <em>what</em>.
+  </p>
+
+  <h3><span class="num">§ 2 / The Penalty Approach</span>Charge a tax on complexity</h3>
+
+  <p>
+    The most direct way to discourage a model from getting too complicated is to <strong>charge it
+    for being complicated</strong>. We extend the loss function so that the model is now optimizing
+    two things at once: fitting the data, and keeping its weights small.
+  </p>
+
+  <div class="equation">
+    Loss = Data Error + λ · (size of weights)
+    <span class="label">The two-term loss that powers L1 and L2</span>
+  </div>
+
+  <p>
+    The hyperparameter <code>λ</code> (lambda) controls how seriously we take the penalty. Small λ
+    means "I mostly care about fitting the data, just nudge me toward smaller weights." Large λ
+    means "I'd rather have a flat-out wrong model than one with big weights."
+  </p>
+
+  <p>
+    The question becomes: what counts as the <em>size</em> of the weights? There are two famous answers.
+  </p>
+
+  <h4>L2 (Ridge): penalize the squared weights</h4>
+
+  <div class="equation">
+    Penalty = w<sub>1</sub><sup>2</sup> + w<sub>2</sub><sup>2</sup> + w<sub>3</sub><sup>2</sup> + &hellip;
+    <span class="label">Sum of squares — the L2 norm</span>
+  </div>
+
+  <p>
+    Squaring punishes big weights <em>disproportionately</em>. A weight of 10 costs 100; a weight of
+    1 costs only 1. So L2 has a strong opinion about outliers in weight-space and barely cares about
+    the small fry. <strong>The result is that every weight gets gently shrunk, but rarely all the
+    way to zero.</strong> Picture a network of springs attached to every weight, pulling each one
+    toward zero with a force that grows with how stretched the spring is.
+  </p>
+
+  <h4>L1 (Lasso): penalize the absolute weights</h4>
+
+  <div class="equation">
+    Penalty = |w<sub>1</sub>| + |w<sub>2</sub>| + |w<sub>3</sub>| + &hellip;
+    <span class="label">Sum of absolute values — the L1 norm</span>
+  </div>
+
+  <p>
+    With absolute value, the marginal cost of a weight is <strong>constant</strong>. Pushing a weight
+    from 0.01 to 0.02 costs the same as pushing it from 5.01 to 5.02. The penalty doesn't pity small
+    weights the way L2 does &mdash; even tiny weights get squeezed.
+  </p>
+
+  <p>
+    The consequence is dramatic: L1 will happily push weights all the way to <strong>exactly zero</strong>
+    if their contribution to fitting the data is smaller than λ. The model becomes <em class="term">sparse</em>.
+    It effectively says, "I don't need these features at all" and deletes them.
+  </p>
+
+  <div class="compare">
+    <div class="l2">
+      <h5>L2 / Ridge</h5>
+      <p>Many small weights. Smooth. Like turning every dial down a little. Good when you believe all features matter a bit.</p>
+    </div>
+    <div class="l1">
+      <h5>L1 / Lasso</h5>
+      <p>A few non-zero weights, the rest zero. Like a binary selector. Good when you believe only some features actually matter.</p>
+    </div>
+  </div>
+
+  <h4>The geometric picture</h4>
+  <p>
+    A pretty piece of intuition: think of the penalty as a "budget" you have to live within. With L2,
+    that budget forms a <strong>circle</strong> (round). With L1, it forms a <strong>diamond</strong>
+    (with sharp corners). When the optimizer is trying to balance fitting the data against staying
+    inside the budget, it tends to land where the data's contours first touch the budget shape.
+    A circle is most likely to be touched on a curve where all coordinates are non-zero. A diamond
+    is most likely to be touched at a <em>corner</em> — and the corners lie exactly on the axes,
+    where some coordinates are zero. That's the geometric reason L1 produces sparsity.
+  </p>
+
+  <p>
+    Go back to the widget and switch between L2 and L1 at moderate λ. Look at the coefficient bars
+    on the right. With L2, you'll see all ten bars are short. With L1, many of them are <em>flat</em> —
+    exactly zero.
+  </p>
+
+  <h3><span class="num">§ 3 / The Noise Approach</span>Dropout: train an army of mediocre networks</h3>
+
+  <p>
+    Penalties shrink weights. Dropout takes a stranger and more interesting approach: at every step
+    of training, it <strong>randomly turns off a fraction of the neurons</strong>. Each neuron is
+    independently set to zero with probability <code>p</code> (the dropout rate). The remaining
+    neurons handle the forward and backward pass alone, then everyone wakes up again, and on the
+    next batch a different random subset gets dropped.
+  </p>
+
+  <div class="mini">
+    <div class="mini-title">Dropout · drag the slider to change drop rate</div>
+    <svg class="nn-svg" viewBox="0 0 460 180" preserveAspectRatio="xMidYMid meet" id="dropout-svg"></svg>
+    <div class="mini-controls">
+      <div class="slider-block">
+        <label>
+          <span>Drop rate p</span>
+          <span data-role="dropout-value">0.30</span>
+        </label>
+        <input type="range" min="0" max="80" value="30" id="dropout-slider">
+      </div>
+      <button class="btn" id="dropout-reroll">Re-roll</button>
+    </div>
+  </div>
+
+  <p>
+    <strong>Why does randomly destroying parts of your network help?</strong> Because the
+    surviving neurons can never count on any specific other neuron being there. They can't form
+    little cliques of co-dependency where, say, neuron A only fires correctly because neurons B and
+    C are always around to provide context. Every neuron has to learn a feature that's <em>robust on
+    its own</em>, useful even when half its neighbors are silent.
+  </p>
+
+  <p>
+    There's a second, deeper interpretation. Each random pattern of dropouts defines a different
+    "subnetwork." Training with dropout is, secretly, training a huge ensemble of these subnetworks
+    simultaneously, all sharing the same weights. At test time we use the full network with the
+    weights scaled down (multiplied by <code>1/(1-p)</code> to keep the expected output the same),
+    which approximates the average of that ensemble. <strong>You get the variance-reducing benefit
+    of ensembling without the cost of training many networks.</strong>
+  </p>
+
+  <div class="callout">
+    A fully connected layer occupies most of the parameters, and hence, neurons develop
+    co-dependency amongst each other during training which curbs the individual power of each
+    neuron — leading to overfitting. This is handled by using Dropout.
+    <span class="by">— Why dropout exists, in one paragraph</span>
+  </div>
+
+  <h3><span class="num">§ 4 / The Stabilizer</span>Batch Normalization: tame the river</h3>
+
+  <p>
+    Batch Normalization is a slightly different beast. It's not primarily a regularizer; its main
+    job is to <strong>stabilize training</strong>. But it has a real regularizing side-effect, so
+    it lives in this neighborhood.
+  </p>
+
+  <p>
+    Inside a deep network, the inputs to each layer keep shifting around as the previous layers
+    update their weights. One layer is trying to learn a moving target. Batch norm fixes this by
+    explicitly <strong>normalizing</strong> the inputs to each layer &mdash; subtracting the mean and
+    dividing by the standard deviation, computed over the current mini-batch. The downstream layer
+    now sees inputs that are always centered at zero with unit variance.
+  </p>
+
+  <div class="mini" id="bn-mini">
+    <div class="mini-title">Batch Normalization · before vs. after</div>
+    <svg class="nn-svg" viewBox="0 0 460 180" preserveAspectRatio="xMidYMid meet" id="bn-svg" style="height:200px"></svg>
+    <div class="mini-controls">
+      <button class="btn" id="bn-reroll">New batch</button>
+    </div>
+  </div>
+
+  <p>
+    The benefits compound: gradients flow more reliably, you can use larger learning rates, training
+    converges faster. The regularization effect is a bonus &mdash; since the normalization statistics
+    are computed per mini-batch, they're noisy, and that noise wiggles each example's activations in
+    a slightly different way every epoch. It's a very mild dropout-flavored effect.
+  </p>
+
+  <h3><span class="num">§ 5 / The Lazy Approach</span>Early stopping: just don't train so long</h3>
+
+  <p>
+    Here's the simplest regularizer in the world, and it works embarrassingly well: <strong>watch
+    the validation loss, and stop training the moment it stops improving.</strong>
+  </p>
+
+  <p>
+    During training, the loss on the training set will fall monotonically (give or take some
+    noise). The loss on a held-out validation set will fall too — at first. But at some point,
+    the model starts memorizing training-set quirks that don't generalize, and validation loss
+    starts climbing back up while training loss keeps falling. The gap between the two curves is
+    the visible signature of overfitting.
+  </p>
+
+  <p>
+    The fix: just stop at the bottom of the validation curve. No extra parameters, no special math —
+    just a checkpoint of the model whenever the validation loss hits a new minimum, and a patience
+    counter to decide when to give up. It's so easy that it's almost always worth doing, even when
+    you're already using other regularizers.
+  </p>
+
+  <h3><span class="num">§ 6 / In Practice</span>You usually use several at once</h3>
+
+  <p>
+    These techniques aren't in competition. A typical modern training recipe layers them: <strong>weight
+    decay (a name for L2)</strong> on the optimizer, <strong>dropout</strong> in the fully-connected
+    layers, <strong>batch (or layer) normalization</strong> between layers, and <strong>early
+    stopping</strong> with patience based on validation loss. Each addresses a slightly different
+    failure mode.
+  </p>
+
+  <p>
+    The right amount of each is a hyperparameter you tune by watching the training/validation gap.
+    If your validation loss is plateauing while training loss continues to drop, you're overfitting
+    and need more regularization. If both losses are stuck high together, you're underfitting and
+    need less regularization — or a bigger model, or more data.
+  </p>
+
+  <div class="callout">
+    Regularization is a dial, not a switch. The whole game is finding the right amount —
+    enough to suppress noise, not so much that you suppress signal.
+    <span class="by">— The whole subject in one sentence</span>
+  </div>
+
+  <h3><span class="num">§ 7 / Recap</span>The map of techniques</h3>
+
+  <ul>
+    <li><strong>L2 / Ridge / Weight decay</strong> — penalize squared weights. Smooths everything.</li>
+    <li><strong>L1 / Lasso</strong> — penalize absolute weights. Drives many to exactly zero (sparsity).</li>
+    <li><strong>Dropout</strong> — randomly zero out neurons during training. Forces robustness, approximates ensembling.</li>
+    <li><strong>Batch Normalization</strong> — normalize each layer's inputs. Stabilizes training; mildly regularizes.</li>
+    <li><strong>Early Stopping</strong> — quit while you're ahead. Watch validation loss; stop at its minimum.</li>
+    <li><strong>(Bonus) Data augmentation</strong> — randomly perturb training examples (rotations, crops, etc). Effectively gives the model more data.</li>
+  </ul>
+
+</article>
+
+<!-- ============================== PRESENTER VIEW ============================== -->
+<section class="presenter" id="presenter-view" hidden>
+  <div class="presenter-header">
+    <div>
+      <div class="presenter-eyebrow">Live demonstration</div>
+      <h2 class="presenter-title">Regularization, <em>in motion</em></h2>
+    </div>
+  </div>
+  <p class="presenter-caption">
+    A 9-degree polynomial fit to 15 noisy points. Switch the method, slide λ, watch the curve calm down.
+  </p>
+
+  <div class="presenter-widget" id="main-widget-presenter">
+    <div class="widget-header">
+      <div class="widget-title"><strong>Method ▸</strong></div>
+      <div class="method-tabs" role="tablist">
+        <button data-method="none" class="active">None</button>
+        <button data-method="l2">L2 / Ridge</button>
+        <button data-method="l1">L1 / Lasso</button>
+        <button data-method="early">Early Stop</button>
+      </div>
+    </div>
+    <div class="widget-body">
+      <div class="widget-plot">
+        <svg class="plot-svg" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="widget-side">
+        <div class="slider-block">
+          <label>
+            <span data-role="param-name">Regularization λ</span>
+            <span data-role="param-value">0.000</span>
+          </label>
+          <input type="range" min="0" max="1000" value="0" data-role="param-slider">
+        </div>
+        <div class="stats">
+          <div class="stat" data-stat="train">
+            <div class="label">Training error</div>
+            <div class="value" data-role="train-mse">—</div>
+          </div>
+          <div class="stat" data-stat="test">
+            <div class="label">Test error</div>
+            <div class="value" data-role="test-mse">—</div>
+          </div>
+        </div>
+        <div>
+          <div class="coef-chart-title">Coefficient magnitudes · w<sub>0</sub> &hellip; w<sub>9</sub></div>
+          <svg class="coef-chart" viewBox="0 0 280 110" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <button class="reset-btn" data-role="resample">↻ Resample data</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+'use strict';
+
+// =================================================================
+// MATH UTILITIES
+// =================================================================
+
+// Seeded PRNG (Mulberry32) — deterministic
+function makeRNG(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Box-Muller for gaussian noise
+function gauss(rng) {
+  let u = 0, v = 0;
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+const TRUE_FN = x => Math.sin(2 * Math.PI * x);
+const DEGREE = 9;
+const N_POINTS = 15;
+const NOISE = 0.22;
+
+let DATA_SEED = 7;
+let dataPoints = [];
+
+function regenData(seed) {
+  const rng = makeRNG(seed);
+  dataPoints = [];
+  for (let i = 0; i < N_POINTS; i++) {
+    const x = i / (N_POINTS - 1);
+    const y = TRUE_FN(x) + NOISE * gauss(rng);
+    dataPoints.push({ x, y });
+  }
+}
+regenData(DATA_SEED);
+
+// Polynomial features, x mapped to [-1, 1] to keep matrix well-conditioned
+function polyFeats(x) {
+  const u = 2 * x - 1;
+  const f = new Array(DEGREE + 1);
+  let v = 1;
+  for (let i = 0; i <= DEGREE; i++) { f[i] = v; v *= u; }
+  return f;
+}
+
+function buildX(xs) {
+  return xs.map(x => polyFeats(x));
+}
+
+// Gaussian elimination with partial pivoting
+function solveLinear(Ain, bin) {
+  const n = Ain.length;
+  // Augment
+  const M = [];
+  for (let i = 0; i < n; i++) {
+    M.push([...Ain[i], bin[i]]);
+  }
+  for (let i = 0; i < n; i++) {
+    // Partial pivot
+    let mx = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(M[k][i]) > Math.abs(M[mx][i])) mx = k;
+    }
+    [M[i], M[mx]] = [M[mx], M[i]];
+    if (Math.abs(M[i][i]) < 1e-12) return new Array(n).fill(0);
+    for (let k = i + 1; k < n; k++) {
+      const factor = M[k][i] / M[i][i];
+      for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
+    }
+  }
+  const x = new Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = M[i][n];
+    for (let j = i + 1; j < n; j++) s -= M[i][j] * x[j];
+    x[i] = s / M[i][i];
+  }
+  return x;
+}
+
+// L2 ridge regression: (X^T X + λI) w = X^T y
+function fitL2(X, y, lambda) {
+  const n = X.length;
+  const d = X[0].length;
+  const XtX = [];
+  for (let i = 0; i < d; i++) {
+    const row = new Array(d).fill(0);
+    for (let j = 0; j < d; j++) {
+      let s = 0;
+      for (let k = 0; k < n; k++) s += X[k][i] * X[k][j];
+      row[j] = s + (i === j && i > 0 ? lambda : 0); // don't penalize intercept
+    }
+    XtX.push(row);
+  }
+  const Xty = new Array(d).fill(0);
+  for (let i = 0; i < d; i++) {
+    let s = 0;
+    for (let k = 0; k < n; k++) s += X[k][i] * y[k];
+    Xty[i] = s;
+  }
+  return solveLinear(XtX, Xty);
+}
+
+// L1 lasso via coordinate descent + soft thresholding
+function fitL1(X, y, lambda, iters) {
+  iters = iters || 600;
+  const n = X.length;
+  const d = X[0].length;
+  const w = new Array(d).fill(0);
+  // start from L2 solution at the same lambda for warm start
+  const init = fitL2(X, y, lambda);
+  for (let i = 0; i < d; i++) w[i] = init[i];
+  // residuals r = y - Xw
+  const r = new Array(n);
+  for (let i = 0; i < n; i++) {
+    let p = 0;
+    for (let j = 0; j < d; j++) p += X[i][j] * w[j];
+    r[i] = y[i] - p;
+  }
+  const colNorm = new Array(d).fill(0);
+  for (let j = 0; j < d; j++) {
+    for (let i = 0; i < n; i++) colNorm[j] += X[i][j] * X[i][j];
+  }
+  for (let it = 0; it < iters; it++) {
+    let maxChange = 0;
+    for (let j = 0; j < d; j++) {
+      // Add back current contribution of w[j]
+      for (let i = 0; i < n; i++) r[i] += X[i][j] * w[j];
+      let rho = 0;
+      for (let i = 0; i < n; i++) rho += X[i][j] * r[i];
+      const t = (j === 0) ? 0 : lambda; // don't penalize intercept
+      let wj;
+      if (colNorm[j] < 1e-12) wj = 0;
+      else if (rho > t) wj = (rho - t) / colNorm[j];
+      else if (rho < -t) wj = (rho + t) / colNorm[j];
+      else wj = 0;
+      const change = Math.abs(wj - w[j]);
+      if (change > maxChange) maxChange = change;
+      w[j] = wj;
+      for (let i = 0; i < n; i++) r[i] -= X[i][j] * w[j];
+    }
+    if (maxChange < 1e-7) break;
+  }
+  return w;
+}
+
+// Gradient descent fit (for early stopping demo)
+function fitGD(X, y, iters, lr) {
+  lr = lr || 0.04;
+  const n = X.length;
+  const d = X[0].length;
+  const w = new Array(d).fill(0);
+  // Precompute X^T X / n  diag for condition rough check, just use scaled GD
+  for (let it = 0; it < iters; it++) {
+    const grad = new Array(d).fill(0);
+    for (let i = 0; i < n; i++) {
+      let pred = 0;
+      for (let j = 0; j < d; j++) pred += X[i][j] * w[j];
+      const err = pred - y[i];
+      for (let j = 0; j < d; j++) grad[j] += err * X[i][j];
+    }
+    for (let j = 0; j < d; j++) w[j] -= (lr / n) * grad[j];
+  }
+  return w;
+}
+
+function predict(w, x) {
+  const feats = polyFeats(x);
+  let s = 0;
+  for (let i = 0; i < feats.length; i++) s += w[i] * feats[i];
+  return s;
+}
+
+function mse(w, points) {
+  let s = 0;
+  for (const p of points) {
+    const e = predict(w, p.x) - p.y;
+    s += e * e;
+  }
+  return s / points.length;
+}
+
+// =================================================================
+// MAIN WIDGET LOGIC
+// =================================================================
+
+// Slider semantics:
+//   none: slider does nothing
+//   l2:   λ from 0 to ~10 on log-ish scale
+//   l1:   λ from 0 to ~3 on log-ish scale
+//   early: iterations from 1 to 1000
+
+function sliderToParam(method, t) {
+  // t in [0, 1]
+  if (method === 'none') return 0;
+  if (method === 'l2') {
+    // 0 to 8, log-ish: t^3 * 8
+    return Math.pow(t, 2.6) * 8;
+  }
+  if (method === 'l1') {
+    return Math.pow(t, 2.6) * 2.5;
+  }
+  if (method === 'early') {
+    // 1 to 800 iterations
+    return Math.max(1, Math.round(Math.pow(t, 1.3) * 800));
+  }
+  return 0;
+}
+
+function formatParam(method, val) {
+  if (method === 'early') return Math.round(val) + ' iters';
+  return val.toFixed(3);
+}
+
+function paramLabel(method) {
+  if (method === 'none') return 'No regularization';
+  if (method === 'l2') return 'Regularization λ (L2)';
+  if (method === 'l1') return 'Regularization λ (L1)';
+  if (method === 'early') return 'Training iterations';
+  return '';
+}
+
+// Test set: dense sample of the true function (no noise)
+const TEST_POINTS = (() => {
+  const arr = [];
+  for (let i = 0; i < 200; i++) {
+    const x = i / 199;
+    arr.push({ x, y: TRUE_FN(x) });
+  }
+  return arr;
+})();
+
+// State: shared between two views, kept in sync
+const widgetState = {
+  method: 'none',
+  sliderT: 0,
+};
+
+function fitFromState() {
+  const xs = dataPoints.map(p => p.x);
+  const ys = dataPoints.map(p => p.y);
+  const X = buildX(xs);
+  const param = sliderToParam(widgetState.method, widgetState.sliderT);
+  let w;
+  if (widgetState.method === 'none') {
+    w = fitL2(X, ys, 0);
+  } else if (widgetState.method === 'l2') {
+    w = fitL2(X, ys, param);
+  } else if (widgetState.method === 'l1') {
+    w = fitL1(X, ys, param);
+  } else if (widgetState.method === 'early') {
+    w = fitGD(X, ys, param);
+  }
+  return { w, param };
+}
+
+// =================================================================
+// PLOT RENDERING
+// =================================================================
+
+const W = 600, H = 380, PAD_L = 44, PAD_R = 20, PAD_T = 24, PAD_B = 38;
+const PLOT_W = W - PAD_L - PAD_R;
+const PLOT_H = H - PAD_T - PAD_B;
+
+function xToPx(x) { return PAD_L + x * PLOT_W; }
+function yToPx(y) {
+  // y range: roughly -1.5 to 1.5
+  const yMin = -1.7, yMax = 1.7;
+  return PAD_T + (yMax - y) / (yMax - yMin) * PLOT_H;
+}
+
+function renderPlot(svgEl, w) {
+  let s = '';
+  // Grid
+  s += '<g class="grid">';
+  for (let i = 0; i <= 6; i++) {
+    const y = -1.5 + i * 0.5;
+    const yp = yToPx(y);
+    s += `<line x1="${PAD_L}" y1="${yp}" x2="${W - PAD_R}" y2="${yp}"/>`;
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = i / 5;
+    const xp = xToPx(x);
+    s += `<line x1="${xp}" y1="${PAD_T}" x2="${xp}" y2="${H - PAD_B}"/>`;
+  }
+  s += '</g>';
+
+  // Axes
+  s += '<g class="axis">';
+  s += `<line x1="${PAD_L}" y1="${H - PAD_B}" x2="${W - PAD_R}" y2="${H - PAD_B}"/>`;
+  s += `<line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${H - PAD_B}"/>`;
+  for (let i = 0; i <= 5; i++) {
+    const x = i / 5;
+    const xp = xToPx(x);
+    s += `<text x="${xp}" y="${H - PAD_B + 16}" text-anchor="middle">${x.toFixed(1)}</text>`;
+  }
+  for (let i = 0; i <= 6; i++) {
+    const y = -1.5 + i * 0.5;
+    const yp = yToPx(y);
+    s += `<text x="${PAD_L - 8}" y="${yp + 3}" text-anchor="end">${y.toFixed(1)}</text>`;
+  }
+  s += '</g>';
+
+  // True curve (dashed)
+  let truePath = '';
+  for (let i = 0; i <= 200; i++) {
+    const x = i / 200;
+    const y = TRUE_FN(x);
+    truePath += (i === 0 ? 'M' : 'L') + xToPx(x).toFixed(1) + ' ' + yToPx(y).toFixed(1) + ' ';
+  }
+  s += `<path class="true-curve" d="${truePath}"/>`;
+
+  // Fitted curve
+  let fitPath = '';
+  for (let i = 0; i <= 200; i++) {
+    const x = i / 200;
+    const y = predict(w, x);
+    const yClamp = Math.max(-3, Math.min(3, y));
+    fitPath += (i === 0 ? 'M' : 'L') + xToPx(x).toFixed(1) + ' ' + yToPx(yClamp).toFixed(1) + ' ';
+  }
+  s += `<path class="fit-curve" d="${fitPath}"/>`;
+
+  // Data points
+  for (const p of dataPoints) {
+    s += `<circle class="data-point" cx="${xToPx(p.x).toFixed(1)}" cy="${yToPx(p.y).toFixed(1)}" r="4.5"/>`;
+  }
+
+  // Legend
+  s += `<g transform="translate(${W - PAD_R - 140}, ${PAD_T + 8})">`;
+  s += `<line class="true-curve" x1="0" y1="6" x2="22" y2="6"/>`;
+  s += `<text class="legend-dot" x="28" y="9">true function</text>`;
+  s += `<line class="fit-curve" x1="0" y1="22" x2="22" y2="22"/>`;
+  s += `<text class="legend-dot" x="28" y="25">fitted curve</text>`;
+  s += `</g>`;
+
+  svgEl.innerHTML = s;
+}
+
+function renderCoefs(svgEl, w) {
+  const CW = 280, CH = 110;
+  const cPadL = 22, cPadR = 8, cPadT = 8, cPadB = 22;
+  const innerW = CW - cPadL - cPadR;
+  const innerH = CH - cPadT - cPadB;
+  // skip intercept (i=0); show w[1]..w[9]
+  const coefs = w.slice(1);
+  const maxAbs = Math.max(0.5, ...coefs.map(c => Math.abs(c)));
+  const barW = innerW / coefs.length * 0.7;
+  const gap = innerW / coefs.length * 0.3;
+  const zeroY = cPadT + innerH / 2;
+  let s = '';
+  // zero axis line
+  s += `<line class="coef-axis" x1="${cPadL}" y1="${zeroY}" x2="${CW - cPadR}" y2="${zeroY}"/>`;
+  // y-axis label
+  s += `<text class="coef-label" x="${cPadL - 4}" y="${cPadT + 6}" text-anchor="end">+</text>`;
+  s += `<text class="coef-label" x="${cPadL - 4}" y="${CH - cPadB + 2}" text-anchor="end">−</text>`;
+  for (let i = 0; i < coefs.length; i++) {
+    const c = coefs[i];
+    const x = cPadL + (innerW / coefs.length) * i + gap / 2;
+    const h = (Math.abs(c) / maxAbs) * (innerH / 2);
+    const isZero = Math.abs(c) < 1e-5;
+    let y, height;
+    if (c >= 0) {
+      y = zeroY - h;
+      height = h;
+    } else {
+      y = zeroY;
+      height = h;
+    }
+    s += `<rect class="coef-bar${isZero ? ' zero' : ''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(2, height).toFixed(1)}" rx="1"/>`;
+    s += `<text class="coef-label" x="${(x + barW / 2).toFixed(1)}" y="${CH - 6}" text-anchor="middle">w${i + 1}</text>`;
+  }
+  svgEl.innerHTML = s;
+}
+
+// =================================================================
+// HOOK UP WIDGETS (both learner and presenter versions)
+// =================================================================
+
+function refreshWidget(root) {
+  const plotSvg = root.querySelector('.plot-svg');
+  const coefSvg = root.querySelector('.coef-chart');
+  const paramName = root.querySelector('[data-role="param-name"]');
+  const paramValue = root.querySelector('[data-role="param-value"]');
+  const trainEl = root.querySelector('[data-role="train-mse"]');
+  const testEl = root.querySelector('[data-role="test-mse"]');
+  const slider = root.querySelector('[data-role="param-slider"]');
+
+  const { w, param } = fitFromState();
+  renderPlot(plotSvg, w);
+  renderCoefs(coefSvg, w);
+  paramName.textContent = paramLabel(widgetState.method);
+  paramValue.textContent = widgetState.method === 'none' ? '—' : formatParam(widgetState.method, param);
+
+  // Sync slider visual to state (e.g. when method changes)
+  const sliderVal = Math.round(widgetState.sliderT * 1000);
+  if (parseInt(slider.value, 10) !== sliderVal) slider.value = sliderVal;
+  slider.disabled = (widgetState.method === 'none');
+
+  const trainMse = mse(w, dataPoints);
+  const testMse = mse(w, TEST_POINTS);
+  trainEl.textContent = trainMse.toFixed(3);
+  testEl.textContent = testMse.toFixed(3);
+  // Color the test stat: bad if much worse than train
+  const testStat = root.querySelector('[data-stat="test"]');
+  testStat.classList.remove('bad', 'good');
+  if (testMse > 0.5) testStat.classList.add('bad');
+  else if (testMse < 0.08) testStat.classList.add('good');
+}
+
+function refreshAllWidgets() {
+  document.querySelectorAll('.widget, .presenter-widget').forEach(refreshWidget);
+}
+
+function hookWidget(root) {
+  const tabs = root.querySelectorAll('.method-tabs button');
+  const slider = root.querySelector('[data-role="param-slider"]');
+  const resample = root.querySelector('[data-role="resample"]');
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      widgetState.method = btn.dataset.method;
+      // sync tab visual state across all widgets
+      document.querySelectorAll('.method-tabs').forEach(grp => {
+        grp.querySelectorAll('button').forEach(b => {
+          b.classList.toggle('active', b.dataset.method === widgetState.method);
+        });
+      });
+      refreshAllWidgets();
+    });
+  });
+  slider.addEventListener('input', () => {
+    widgetState.sliderT = parseInt(slider.value, 10) / 1000;
+    refreshAllWidgets();
+  });
+  resample.addEventListener('click', () => {
+    DATA_SEED = (DATA_SEED * 17 + 11) % 9973;
+    regenData(DATA_SEED);
+    refreshAllWidgets();
+  });
+}
+
+document.querySelectorAll('.widget, .presenter-widget').forEach(hookWidget);
+
+// =================================================================
+// VIEW TOGGLE
+// =================================================================
+
+const learnerView = document.getElementById('learner-view');
+const presenterView = document.getElementById('presenter-view');
+const toggleBtns = document.querySelectorAll('.toggle button');
+
+toggleBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.view;
+    toggleBtns.forEach(b => {
+      const active = b.dataset.view === v;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active);
+    });
+    if (v === 'learner') {
+      presenterView.hidden = true;
+      learnerView.hidden = false;
+    } else {
+      learnerView.hidden = true;
+      presenterView.hidden = false;
+    }
+    refreshAllWidgets();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  });
+});
+
+// =================================================================
+// DROPOUT MINI-WIDGET
+// =================================================================
+
+const DROPOUT_LAYERS = [4, 6, 6, 3]; // input, hidden1, hidden2, output
+let dropoutRNGSeed = 3;
+let dropoutP = 0.30;
+
+function buildDropoutNodes() {
+  // returns array of layers, each with array of {x, y}
+  const layers = [];
+  const svgW = 460, svgH = 180;
+  const lGap = svgW / (DROPOUT_LAYERS.length + 1);
+  for (let li = 0; li < DROPOUT_LAYERS.length; li++) {
+    const n = DROPOUT_LAYERS[li];
+    const layer = [];
+    const yGap = svgH / (n + 1);
+    for (let i = 0; i < n; i++) {
+      layer.push({ x: lGap * (li + 1), y: yGap * (i + 1) });
+    }
+    layers.push(layer);
+  }
+  return layers;
+}
+
+function renderDropout() {
+  const svg = document.getElementById('dropout-svg');
+  const layers = buildDropoutNodes();
+  const rng = makeRNG(dropoutRNGSeed);
+  // Decide which nodes are dropped (only hidden layers, not input/output)
+  const dropped = layers.map((layer, li) => layer.map(() => {
+    if (li === 0 || li === layers.length - 1) return false;
+    return rng() < dropoutP;
+  }));
+  let s = '';
+  // Edges
+  for (let li = 0; li < layers.length - 1; li++) {
+    for (let i = 0; i < layers[li].length; i++) {
+      for (let j = 0; j < layers[li + 1].length; j++) {
+        const isDropped = dropped[li][i] || dropped[li + 1][j];
+        s += `<line class="nn-edge${isDropped ? ' dropped' : ''}" x1="${layers[li][i].x}" y1="${layers[li][i].y}" x2="${layers[li + 1][j].x}" y2="${layers[li + 1][j].y}"/>`;
+      }
+    }
+  }
+  // Nodes
+  for (let li = 0; li < layers.length; li++) {
+    for (let i = 0; i < layers[li].length; i++) {
+      const isDropped = dropped[li][i];
+      s += `<circle class="nn-node${isDropped ? ' dropped' : ''}" cx="${layers[li][i].x}" cy="${layers[li][i].y}" r="9"/>`;
+      if (isDropped) {
+        s += `<text x="${layers[li][i].x}" y="${layers[li][i].y + 3}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="var(--muted)">×</text>`;
+      }
+    }
+  }
+  // Layer labels
+  const labels = ['Input', 'Hidden', 'Hidden', 'Output'];
+  for (let li = 0; li < layers.length; li++) {
+    s += `<text x="${layers[li][0].x}" y="172" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--muted)" letter-spacing="0.5">${labels[li].toUpperCase()}</text>`;
+  }
+  svg.innerHTML = s;
+}
+
+const dropSlider = document.getElementById('dropout-slider');
+const dropValue = document.querySelector('[data-role="dropout-value"]');
+const dropReroll = document.getElementById('dropout-reroll');
+dropSlider.addEventListener('input', () => {
+  dropoutP = parseInt(dropSlider.value, 10) / 100;
+  dropValue.textContent = dropoutP.toFixed(2);
+  renderDropout();
+});
+dropReroll.addEventListener('click', () => {
+  dropoutRNGSeed = (dropoutRNGSeed * 13 + 7) % 9999;
+  renderDropout();
+});
+renderDropout();
+
+// =================================================================
+// BATCH NORM MINI-WIDGET
+// =================================================================
+
+let bnSeed = 17;
+
+function renderBN() {
+  const svg = document.getElementById('bn-svg');
+  const rng = makeRNG(bnSeed);
+  // generate ~30 samples with random mean and variance
+  const trueMean = -1.5 + rng() * 3;
+  const trueStd = 0.5 + rng() * 2;
+  const samples = [];
+  for (let i = 0; i < 30; i++) samples.push(trueMean + trueStd * gauss(rng));
+  // Normalize
+  const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+  const variance = samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length;
+  const std = Math.sqrt(variance);
+  const normalized = samples.map(s => (s - mean) / std);
+
+  const W = 460, H = 180;
+  // Left plot: raw distribution
+  // Right plot: normalized distribution
+  const padL = 14, padR = 14, padT = 18, padB = 30;
+  const halfW = (W - padL - padR - 20) / 2;
+  const plotH = H - padT - padB;
+
+  function buildHistogramSection(values, xOffset, color, title, mean, std) {
+    let html = '';
+    // axes
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const range = Math.max(0.5, dataMax - dataMin);
+    const xMin = dataMin - range * 0.1;
+    const xMax = dataMax + range * 0.1;
+    // x axis line
+    const xAxisY = padT + plotH;
+    html += `<line class="coef-axis" x1="${xOffset}" y1="${xAxisY}" x2="${xOffset + halfW}" y2="${xAxisY}"/>`;
+    // bins
+    const nBins = 12;
+    const bins = new Array(nBins).fill(0);
+    for (const v of values) {
+      const idx = Math.min(nBins - 1, Math.floor((v - xMin) / (xMax - xMin) * nBins));
+      bins[idx]++;
+    }
+    const maxBin = Math.max(...bins);
+    const binW = halfW / nBins;
+    for (let i = 0; i < nBins; i++) {
+      const h = bins[i] / maxBin * plotH * 0.85;
+      const x = xOffset + i * binW;
+      const y = xAxisY - h;
+      html += `<rect x="${x + 1}" y="${y}" width="${binW - 2}" height="${h}" fill="${color}" opacity="0.85" rx="1"/>`;
+    }
+    // mean line
+    const meanX = xOffset + (mean - xMin) / (xMax - xMin) * halfW;
+    html += `<line x1="${meanX}" y1="${padT}" x2="${meanX}" y2="${xAxisY}" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+    html += `<text x="${meanX}" y="${padT - 4}" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--ink-soft)">μ=${mean.toFixed(2)}</text>`;
+    // title
+    html += `<text x="${xOffset + halfW / 2}" y="${H - 16}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="var(--muted)" letter-spacing="0.5">${title}</text>`;
+    html += `<text x="${xOffset + halfW / 2}" y="${H - 4}" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--muted)">σ=${std.toFixed(2)}</text>`;
+    return html;
+  }
+  let s = '';
+  s += buildHistogramSection(samples, padL, 'var(--accent)', 'BEFORE', mean, std);
+  // arrow between
+  const arrX = padL + halfW + 10;
+  s += `<g transform="translate(${arrX}, ${padT + plotH / 2})">`;
+  s += `<line x1="-5" y1="0" x2="15" y2="0" stroke="var(--ink-soft)" stroke-width="1.5"/>`;
+  s += `<polygon points="13,-4 19,0 13,4" fill="var(--ink-soft)"/>`;
+  s += `<text y="-14" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="var(--muted)" letter-spacing="0.5">BATCHNORM</text>`;
+  s += `</g>`;
+  s += buildHistogramSection(normalized, padL + halfW + 30, 'var(--teal)', 'AFTER', 0, 1);
+  svg.innerHTML = s;
+}
+
+document.getElementById('bn-reroll').addEventListener('click', () => {
+  bnSeed = (bnSeed * 23 + 5) % 9973;
+  renderBN();
+});
+renderBN();
+
+// =================================================================
+// INITIAL RENDER
+// =================================================================
+refreshAllWidgets();
+
+</script>
+</body>
+</html>

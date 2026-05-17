@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loss Functions for Neural Networks — An Interactive Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,700;9..144,400..700&family=Source+Serif+4:opsz,wght@8..60,300..600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Color tokens — light mode
+============================================================ */
+:root {
+  --bg:           #FAF7F0;
+  --bg-elev:      #FFFFFF;
+  --bg-soft:      #F1ECDE;
+  --ink:          #1A1A1A;
+  --ink-soft:     #4B4842;
+  --ink-mute:     #7A766C;
+  --rule:         #DDD7C7;
+  --rule-strong:  #BFB8A4;
+
+  --accent:        #0F6E56;
+  --accent-soft:   #C9E5DA;
+  --accent-ink:    #04342C;
+
+  --mse:           #D85A30;   /* coral — aggressive */
+  --mae:           #185FA5;   /* blue  — calm */
+  --huber:         #5F4B8B;   /* purple — balanced */
+  --mse-soft:      #F5C4B3;
+  --mae-soft:      #B5D4F4;
+  --huber-soft:    #CECBF6;
+
+  --good:          #1D9E75;
+  --bad:           #C0392B;
+  --caution:       #BA7517;
+
+  --shadow:        0 1px 2px rgba(28, 24, 12, 0.04), 0 8px 24px rgba(28, 24, 12, 0.06);
+
+  --font-display:  'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body:     'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+  --font-mono:     'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:           #14110D;
+    --bg-elev:      #1D1A14;
+    --bg-soft:      #28241C;
+    --ink:          #EFEAD8;
+    --ink-soft:     #C8C2AE;
+    --ink-mute:     #948C7B;
+    --rule:         #3A342B;
+    --rule-strong:  #4F4838;
+
+    --accent:        #5DCAA5;
+    --accent-soft:   #1F4A3E;
+    --accent-ink:    #C8EBDC;
+
+    --mse:           #F0997B;
+    --mae:           #85B7EB;
+    --huber:         #AFA9EC;
+    --mse-soft:      #4A1B0C;
+    --mae-soft:      #0C447C;
+    --huber-soft:    #26215C;
+
+    --good:          #97C459;
+    --bad:           #F09595;
+    --caution:       #EF9F27;
+
+    --shadow:        0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.3);
+  }
+}
+
+/* ============================================================
+   Base
+============================================================ */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+
+/* ============================================================
+   Sticky header with toggle
+============================================================ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--rule);
+}
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.brand .dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin: 0 8px 2px 0;
+  vertical-align: middle;
+}
+
+.toggle {
+  display: inline-flex;
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px;
+}
+.toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 7px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.toggle button:hover { color: var(--ink); }
+.toggle button.active {
+  background: var(--bg-elev);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow);
+}
+@media (prefers-color-scheme: dark) {
+  .toggle button.active { color: var(--accent); }
+}
+
+/* ============================================================
+   LEARNER VIEW
+============================================================ */
+.learner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 64px 32px 96px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 16px;
+}
+
+h1.title {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 120, "SOFT" 30;
+  font-weight: 500;
+  font-size: clamp(40px, 6vw, 64px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin: 0 0 20px;
+}
+h1.title em {
+  font-style: italic;
+  font-variation-settings: "opsz" 120, "SOFT" 100;
+  color: var(--accent);
+}
+
+.lede {
+  font-family: var(--font-body);
+  font-size: 22px;
+  line-height: 1.5;
+  font-weight: 300;
+  color: var(--ink-soft);
+  margin: 0 0 56px;
+  max-width: 640px;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 56px 0 18px;
+  color: var(--ink);
+}
+h2::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 2px;
+  background: var(--accent);
+  margin-bottom: 18px;
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 22px;
+  margin: 36px 0 10px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+p { margin: 0 0 18px; }
+.learner p { color: var(--ink); }
+
+.eq {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  background: var(--bg-soft);
+  border-left: 3px solid var(--accent);
+  padding: 14px 20px;
+  margin: 20px 0;
+  border-radius: 0 6px 6px 0;
+  color: var(--ink);
+  overflow-x: auto;
+}
+
+.callout {
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin: 24px 0;
+  font-size: 16.5px;
+  line-height: 1.6;
+}
+.callout .label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 8px;
+}
+.callout strong { font-weight: 500; }
+
+.example-numbers {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.85;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  padding: 14px 18px;
+  border-radius: 6px;
+  margin: 14px 0;
+  color: var(--ink-soft);
+}
+.example-numbers .right { color: var(--good); }
+.example-numbers .wrong { color: var(--bad); }
+.example-numbers .arrow { color: var(--ink-mute); margin: 0 6px; }
+
+em.term {
+  font-style: italic;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.chip-mse   { background: var(--mse-soft);   color: var(--mse);   }
+.chip-mae   { background: var(--mae-soft);   color: var(--mae);   }
+.chip-huber { background: var(--huber-soft); color: var(--huber); }
+/* In dark mode the variables themselves swap (mse-soft becomes dark, mse becomes
+   bright), so the same rule gives bright text on dark fill automatically. */
+
+/* ============================================================
+   WIDGET — works embedded (learner) and full-bleed (presenter)
+============================================================ */
+.widget-frame {
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.learner .widget-frame { margin: 36px 0; }
+
+.widget-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-soft);
+}
+.widget-tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-mute);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 13px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  letter-spacing: 0.01em;
+}
+.widget-tabs button:hover { color: var(--ink-soft); }
+.widget-tabs button.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  background: var(--bg-elev);
+}
+
+.widget-body { padding: 24px; }
+
+.widget-caption {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-mute);
+  text-align: center;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.widget-stage {
+  position: relative;
+  width: 100%;
+}
+.widget-stage svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.widget-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+@media (min-width: 600px) {
+  .widget-controls { grid-template-columns: 1fr 1fr; }
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.control-label {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.control-row { display: flex; align-items: center; gap: 10px; }
+.control-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.control-row .value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 44px;
+  text-align: right;
+  color: var(--ink);
+}
+.btn {
+  appearance: none;
+  border: 1px solid var(--rule-strong);
+  background: var(--bg-elev);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg-soft); color: var(--ink); }
+.btn:active { transform: scale(0.98); }
+
+.radio-group {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-soft);
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  width: fit-content;
+}
+.radio-group label {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--ink-mute);
+  transition: all 0.15s;
+}
+.radio-group input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.radio-group input[type="radio"]:checked + label {
+  background: var(--bg-elev);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.readout-item {
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--rule);
+}
+.readout-item.mse   { border-left-color: var(--mse);   }
+.readout-item.mae   { border-left-color: var(--mae);   }
+.readout-item.huber { border-left-color: var(--huber); }
+.readout-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.readout-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+/* Classification mode readout */
+.cls-readout {
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.cls-readout-num {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.cls-readout-tag {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 15px;
+}
+.cls-tag-good    { color: var(--good); }
+.cls-tag-meh     { color: var(--caution); }
+.cls-tag-bad     { color: var(--bad); }
+
+/* ============================================================
+   CALCULATOR (step-by-step) tab
+============================================================ */
+.calc-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.calc-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.calc-card-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.calc-card-point {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: var(--bg-elev);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  min-width: 64px;
+  text-align: center;
+}
+.calc-card-truthrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.calc-card-truthrow .label {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+.calc-card-truthrow .val {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.calc-card-truthrow .val.pred { color: var(--accent); }
+.calc-card-truthrow .err { color: var(--ink); }
+.calc-card-truthrow .err-big { color: var(--mse); }
+.calc-card-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.calc-card-slider-row .true-tick {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.calc-slider {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+}
+.calc-card-terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.calc-term {
+  background: var(--bg-elev);
+  border-radius: 6px;
+  padding: 7px 10px;
+  border-left: 3px solid var(--rule);
+}
+.calc-term.mse   { border-left-color: var(--mse);   }
+.calc-term.mae   { border-left-color: var(--mae);   }
+.calc-term.huber { border-left-color: var(--huber); }
+.calc-term-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.calc-term-formula {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 1px;
+}
+.calc-term-val {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+/* Breakdown bars */
+.calc-breakdown {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+.calc-breakdown-title {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 0 0 10px;
+}
+.calc-bar-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.calc-bar-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.calc-bar-label.mse   { color: var(--mse);   }
+.calc-bar-label.mae   { color: var(--mae);   }
+.calc-bar-label.huber { color: var(--huber); }
+.calc-bar-track {
+  height: 22px;
+  background: var(--bg-soft);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.calc-bar-fill {
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  transition: width 0.12s ease;
+}
+.calc-bar-seg {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255,255,255,0.92);
+  font-weight: 500;
+  border-right: 1px solid var(--bg-elev);
+  transition: width 0.12s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.calc-bar-seg:last-child { border-right: 0; }
+.calc-bar-total {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  min-width: 56px;
+  text-align: right;
+}
+.calc-reset-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* point segment colors — distinct from loss colors */
+.seg-p1 { background: #6B8E4E; }   /* sage */
+.seg-p2 { background: #CB8835; }   /* warm gold */
+.seg-p3 { background: #9B4F65; }   /* dusty rose */
+.seg-p4 { background: #4D6B8A; }   /* slate blue */
+@media (prefers-color-scheme: dark) {
+  .seg-p1 { background: #97C25C; }
+  .seg-p2 { background: #E5B061; }
+  .seg-p3 { background: #D08296; }
+  .seg-p4 { background: #84A4C7; }
+}
+
+
+.presenter {
+  display: none;
+  min-height: calc(100vh - 64px);
+  padding: 32px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+/* ============================================================
+   PRESENTER VIEW (note: above .presenter rules continue below)
+============================================================ */
+.presenter.active { display: flex; }
+.learner.hidden { display: none; }
+
+.presenter-title {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 144;
+  font-weight: 500;
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-align: center;
+  color: var(--ink);
+}
+.presenter-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+.presenter-caption {
+  font-family: var(--font-body);
+  font-size: clamp(15px, 1.6vw, 19px);
+  color: var(--ink-mute);
+  text-align: center;
+  max-width: 720px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.presenter .widget-frame {
+  width: 100%;
+  max-width: 1100px;
+}
+.presenter .widget-body { padding: 32px; }
+.presenter .widget-stage svg { max-height: 60vh; }
+
+/* For the presenter view, lift the controls a bit */
+.presenter .control-label { font-size: 12.5px; }
+.presenter .readout-value { font-size: 22px; }
+.presenter .cls-readout-num { font-size: 38px; }
+.presenter .cls-readout-tag { font-size: 18px; }
+
+/* ============================================================
+   Sources footer
+============================================================ */
+.sources {
+  margin-top: 80px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
+  font-size: 14px;
+  color: var(--ink-mute);
+  line-height: 1.7;
+}
+.sources strong { color: var(--ink-soft); font-weight: 500; }
+
+/* ============================================================
+   Misc
+============================================================ */
+.figure-note {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-mute);
+  text-align: center;
+  margin-top: -16px;
+  margin-bottom: 30px;
+  padding: 0 32px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 5px; }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- STICKY HEADER WITH VIEW TOGGLE                                -->
+<!-- ============================================================ -->
+<header class="header">
+  <div class="header-inner">
+    <div class="brand"><span class="dot"></span>Loss Functions for Neural Networks</div>
+    <div class="toggle" role="tablist" aria-label="View mode">
+      <button id="btn-learner" class="active" role="tab" aria-selected="true">Learner</button>
+      <button id="btn-presenter" role="tab" aria-selected="false">Presenter</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- LEARNER VIEW                                                  -->
+<!-- ============================================================ -->
+<main class="learner" id="learner-view">
+
+  <p class="eyebrow">Deep learning · fundamentals</p>
+  <h1 class="title">How a network knows it's <em>wrong</em>.</h1>
+  <p class="lede">Every loss function answers the same question — how bad was that prediction? — but each one answers it differently, and the choice quietly defines what your model is even trying to learn.</p>
+
+  <h2>The shape of being wrong</h2>
+
+  <p>Training a neural network is, at heart, a single repeated act: predict, measure how wrong, adjust. The thing that does the measuring is the <em class="term">loss function</em>. It turns the gap between predictions and truth into one number, and gradient descent uses that number to nudge weights in a slightly less wrong direction. The whole apparatus rests on this single quantity.</p>
+
+  <p>What's interesting — and what trips people up — is that the loss function isn't a neutral measurement. It's an editorial choice. A network trained with <span class="chip chip-mse">MSE</span> doesn't just <em>measure</em> the same kind of error as one trained with <span class="chip chip-mae">MAE</span>, weighted more harshly. It's optimizing for a different objective entirely. With MSE, the network learns to predict the conditional mean. With MAE, the conditional median. Same data, same architecture, different learned function. The loss is the objective; change it and you change the meaning of "trained."</p>
+
+  <p>The clearest way to see this is to put the three regression losses next to each other and just <em>play</em> with them. The widget below lets you drag a single outlier point and watch how each loss responds.</p>
+
+  <!-- ============================================================ -->
+  <!-- THE WIDGET — embedded                                         -->
+  <!-- ============================================================ -->
+  <div class="widget-frame" id="widget-frame">
+    <div class="widget-tabs" role="tablist">
+      <button id="tab-regression" class="active" data-mode="regression">Regression — robustness</button>
+      <button id="tab-classification" data-mode="classification">Classification — confidence</button>
+      <button id="tab-calculator" data-mode="calculator">Step-by-step — the arithmetic</button>
+    </div>
+    <div class="widget-body">
+      <p class="widget-caption" id="widget-caption">
+        Drag the orange dot. Watch what happens to the three best-fit lines as you pull the outlier farther from the cluster.
+      </p>
+      <div class="widget-stage" id="widget-stage">
+        <!-- SVG injected by JS -->
+      </div>
+
+      <!-- Calculator stage (shown only for 'calculator' mode) -->
+      <div id="calc-stage" style="display:none;">
+        <div class="calc-cards" id="calc-cards"></div>
+        <div class="calc-breakdown">
+          <p class="calc-breakdown-title">Where each metric's total comes from — segments are per-point contributions</p>
+          <div class="calc-bar-row">
+            <span class="calc-bar-label mse">MSE · Σ&nbsp;e²</span>
+            <div class="calc-bar-track"><div class="calc-bar-fill" id="bar-mse"></div></div>
+            <span class="calc-bar-total" id="bar-mse-total">—</span>
+          </div>
+          <div class="calc-bar-row">
+            <span class="calc-bar-label mae">MAE · Σ&nbsp;|e|</span>
+            <div class="calc-bar-track"><div class="calc-bar-fill" id="bar-mae"></div></div>
+            <span class="calc-bar-total" id="bar-mae-total">—</span>
+          </div>
+          <div class="calc-bar-row">
+            <span class="calc-bar-label huber">Huber · Σ&nbsp;Lδ</span>
+            <div class="calc-bar-track"><div class="calc-bar-fill" id="bar-huber"></div></div>
+            <span class="calc-bar-total" id="bar-huber-total">—</span>
+          </div>
+        </div>
+        <div class="readout" id="readout-calculator">
+          <div class="readout-item mse">
+            <div class="readout-label">MSE = Σe²/n</div>
+            <div class="readout-value" id="calc-mse-mean">—</div>
+          </div>
+          <div class="readout-item mae">
+            <div class="readout-label">MAE = Σ|e|/n</div>
+            <div class="readout-value" id="calc-mae-mean">—</div>
+          </div>
+          <div class="readout-item huber">
+            <div class="readout-label">Huber = ΣLδ/n</div>
+            <div class="readout-value" id="calc-huber-mean">—</div>
+          </div>
+        </div>
+        <div class="calc-reset-row">
+          <button class="btn" id="reset-calculator">Reset to defaults</button>
+        </div>
+      </div>
+      <!-- Regression controls -->
+      <div class="widget-controls" id="regression-controls">
+        <div class="control">
+          <span class="control-label">Huber threshold δ</span>
+          <div class="control-row">
+            <input type="range" id="huber-delta" min="0.2" max="3" step="0.05" value="1">
+            <span class="value" id="huber-delta-val">1.00</span>
+          </div>
+        </div>
+        <div class="control" style="justify-content: flex-end; align-items: flex-end;">
+          <button class="btn" id="reset-regression">Reset outlier</button>
+        </div>
+      </div>
+      <div class="readout" id="readout-regression">
+        <div class="readout-item mse">
+          <div class="readout-label">MSE prediction</div>
+          <div class="readout-value" id="mse-val">—</div>
+        </div>
+        <div class="readout-item mae">
+          <div class="readout-label">MAE prediction</div>
+          <div class="readout-value" id="mae-val">—</div>
+        </div>
+        <div class="readout-item huber">
+          <div class="readout-label">Huber prediction</div>
+          <div class="readout-value" id="huber-val">—</div>
+        </div>
+      </div>
+      <div class="legend" id="regression-legend">
+        <span class="legend-item"><span class="legend-swatch" style="background: var(--mse)"></span>MSE = mean</span>
+        <span class="legend-item"><span class="legend-swatch" style="background: var(--mae)"></span>MAE = median</span>
+        <span class="legend-item"><span class="legend-swatch" style="background: var(--huber)"></span>Huber = robust mean</span>
+      </div>
+
+      <!-- Classification controls (hidden until that tab is active) -->
+      <div class="widget-controls" id="classification-controls" style="display:none;">
+        <div class="control">
+          <span class="control-label">True label</span>
+          <div class="radio-group">
+            <input type="radio" name="true-label" id="label-1" value="1" checked>
+            <label for="label-1">y = 1 (positive)</label>
+            <input type="radio" name="true-label" id="label-0" value="0">
+            <label for="label-0">y = 0 (negative)</label>
+          </div>
+        </div>
+        <div class="control" style="justify-content: flex-end; align-items: flex-end;">
+          <button class="btn" id="reset-classification">Reset</button>
+        </div>
+      </div>
+      <div class="cls-readout" id="readout-classification" style="display:none;">
+        <div>
+          <div class="readout-label" style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-mute);">Cross-entropy loss</div>
+          <div class="cls-readout-num" id="cls-loss-val">0.36</div>
+        </div>
+        <div class="cls-readout-tag" id="cls-tag">confidently correct</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="figure-note" id="figure-note">Each horizontal line is the constant prediction that minimizes its loss across the eight points plus the outlier. Drag the outlier vertically.</p>
+
+  <h2>Three flavors of regression</h2>
+
+  <h3><span class="chip chip-mse">MSE</span>&nbsp; Mean Squared Error</h3>
+  <p>MSE squares the error. An error of 4 contributes 16 to the loss; an error of 2 contributes 4 — four times as much for an error twice as large, not two. This makes MSE <em>obsessed</em> with the outlier. Pull the orange dot far up in the widget above and watch the coral line chase it.</p>
+  <div class="eq">MSE = (1/n) · Σ (yᵢ − ŷᵢ)²</div>
+  <p>Two practical consequences follow. First, MSE has a gradient that scales smoothly with the error magnitude — large early in training, small near the optimum — which gradient descent loves. Second, it is extremely sensitive to outliers. One mislabelled data point with a huge error can dominate the entire loss surface.</p>
+
+  <div class="callout">
+    <span class="label">Concrete example</span>
+    <p style="margin: 0;">Predicting house prices, true price = $500k.</p>
+    <div class="example-numbers">
+      Predict $510k <span class="arrow">→</span> error 10, squared = <span class="right">100</span><br>
+      Predict $480k <span class="arrow">→</span> error 20, squared = <span class="right">400</span><br>
+      Predict $400k <span class="arrow">→</span> error 100, squared = <span class="wrong">10,000</span>
+    </div>
+    <p style="margin: 0;">The $100k miss contributes <strong>25× more</strong> to the loss than the $20k miss. If that house was a typo, MSE will let it dictate the model.</p>
+  </div>
+
+  <h3><span class="chip chip-mae">MAE</span>&nbsp; Mean Absolute Error</h3>
+  <p>Same idea, without the squaring. A miss of 20 contributes exactly twice as much as a miss of 10 — proportional, not punitive. The result: MAE doesn't care how extreme an outlier is, only that it's wrong. In the widget, the blue MAE line barely moves no matter how far you yank the orange dot, because the median is unmoved by extreme values.</p>
+  <div class="eq">MAE = (1/n) · Σ |yᵢ − ŷᵢ|</div>
+  <p>The cost of that robustness: the gradient of |x| is ±1 everywhere, so the update signal is the same size whether the model is off by $1 or off by $1,000,000. The model doesn't <em>know</em> it's almost there, and training can oscillate near the optimum rather than settling cleanly into it.</p>
+
+  <h3><span class="chip chip-huber">Huber</span>&nbsp; The diplomatic compromise</h3>
+  <p>Huber loss has a knob — call it δ — that splits the loss into two regimes. For errors smaller than δ, it acts exactly like MSE: smooth, with a gradient that shrinks as the prediction gets closer. For errors larger than δ, it switches to acting like MAE: linear, capped, refusing to be bullied by outliers.</p>
+  <div class="eq">L_δ(e) = ½ e²  if |e| ≤ δ,&nbsp; else  δ · (|e| − ½δ)</div>
+  <p>The δ slider in the widget controls this threshold. Pull δ up high and Huber starts behaving like pure MSE. Pull it down low and it converges on MAE. The sweet spot for noisy regression problems is usually around δ = 1 (after scaling), which is why it's a popular default in deep reinforcement learning where Q-value targets are notoriously noisy.</p>
+
+  <div class="callout">
+    <span class="label">Want to see the actual arithmetic?</span>
+    <p style="margin: 0;">Switch to the <strong>Step-by-step</strong> tab in the widget. You'll get four data points with sliders for each prediction, with the squared, absolute, and Huber contributions broken out per point, and a live bar chart showing where each metric's total comes from. Drag the third point's slider way off and watch MSE's bar grow several times longer than MAE's.</p>
+  </div>
+
+  <h2>Classification: the asymmetry of being confident</h2>
+
+  <p>Classification is fundamentally different from regression in one way: the network's output isn't a number on a real line, it's a probability — or a vector of probabilities summing to one. So the loss function isn't measuring distance, it's measuring something more interesting: <em>how surprised should the model be by the truth?</em></p>
+
+  <p>The standard answer is <em class="term">cross-entropy</em>, which is just the negative log of the probability the model assigned to the correct answer. For binary classification:</p>
+
+  <div class="eq">BCE = −[ y · log(p̂) + (1 − y) · log(1 − p̂) ]</div>
+
+  <p>That formula looks fearsome but only one term is ever active. If the truth is y = 1, the loss is −log(p̂); if y = 0, it's −log(1 − p̂). Either way: the negative log of the probability assigned to whatever turned out to be true.</p>
+
+  <p>Switch the widget above to the <em>Classification</em> tab and you can see what this shape does. Drag the predicted-probability marker. When the model is confidently correct (probability ≈ 1 on the right answer), the loss is tiny. When uncertain, it's moderate. When confidently <em>wrong</em>, it shoots up — not linearly, but logarithmically. A model that says "99% sure" and is wrong gets crushed; a model that says "60% sure" and is wrong gets a gentle nudge.</p>
+
+  <div class="callout">
+    <span class="label">Why the asymmetry matters</span>
+    <p style="margin: 0 0 10px;">Cross-entropy doesn't just want the model to be right — it wants the model's <em>confidence</em> to mean something. A 90% prediction should be right roughly 90% of the time. This property is called <strong>calibration</strong>, and it's what makes cross-entropy the right loss for any task where you need probabilities you can act on (medical triage, fraud detection, search ranking).</p>
+  </div>
+
+  <p>For multi-class problems, <span class="chip chip-huber">categorical cross-entropy</span> is the same idea generalised to many classes via a softmax output. The loss collapses to −log(p̂ of the correct class) — same intuition, just with more options to spread probability across. This is the loss running underneath ImageNet classifiers, Fashion MNIST tutorials, and the next-token prediction objective inside every large language model.</p>
+
+  <h2>Beyond the basics</h2>
+
+  <p>Most production systems use one of these four — MSE/Huber for regression, binary or categorical cross-entropy for classification. But there's a whole zoo of specialised losses worth knowing exist:</p>
+
+  <p><strong>Focal loss</strong> multiplies cross-entropy by (1 − p̂)<sup>γ</sup>, which down-weights examples the model already gets right and concentrates gradients on the hard ones. Indispensable for severe class imbalance — fraud detection, object detection (where 99% of pixels are background), rare disease classification.</p>
+
+  <p><strong>KL divergence</strong> measures distance between two probability distributions, used whenever your target <em>is</em> a distribution (knowledge distillation, variational autoencoders, label smoothing). Categorical cross-entropy turns out to be KL divergence with a one-hot target.</p>
+
+  <p><strong>Contrastive and triplet losses</strong> train embeddings — pushing similar inputs close together in some learned space and dissimilar inputs apart. The machinery behind face recognition (FaceNet), image retrieval, and most semantic search systems.</p>
+
+  <p><strong>Dice loss</strong> directly optimises the overlap between predicted and ground-truth masks in semantic segmentation. Pixel-wise cross-entropy gets swamped by easy background pixels; Dice doesn't.</p>
+
+  <h2>The one rule, and the meta-rule</h2>
+
+  <p>The single most common silent bug in neural network code is mismatching the output activation and the loss function. They have to be paired correctly: <span class="chip chip-mse">sigmoid + binary cross-entropy</span>, <span class="chip chip-huber">softmax + categorical cross-entropy</span>, <span class="chip chip-mae">linear + MSE/MAE/Huber</span>. A softmax output trained with MSE is technically legal code that will train slowly and learn the wrong thing. (Modern frameworks like PyTorch and TensorFlow paper over this by fusing the activation into the loss — <code style="font-family: var(--font-mono); font-size: 14.5px; background: var(--bg-soft); padding: 1px 4px; border-radius: 3px;">CrossEntropyLoss</code> expects raw logits, not softmaxed probabilities. The fused version is more numerically stable.)</p>
+
+  <p>The meta-rule: the loss function is a hyperparameter, not a constant. Treat it like learning rate or architecture choice — start with the default for your task, but be willing to experiment when the default isn't doing what you need. The choice of loss is, ultimately, a choice about what kinds of errors you're willing to live with and which ones you want to obliterate.</p>
+
+  <div class="sources">
+    <p><strong>Sources & further reading.</strong> Goodfellow, Bengio & Courville, <em>Deep Learning</em> (MIT Press, 2016) — foundational. Terven et al., <em>Loss Functions in Deep Learning: A Comprehensive Review</em> (arXiv 2504.04242, 2024) — most recent survey. Ciampiconi et al., <em>A survey and taxonomy of loss functions in machine learning</em> (arXiv 2301.05579, 2023). Lin et al., <em>Focal Loss for Dense Object Detection</em> (ICCV 2017). Schroff et al., <em>FaceNet</em> (CVPR 2015). Karpathy & Johnson, <em>CS231n</em> notes (Stanford). PyTorch <code style="font-family: var(--font-mono); font-size: 13px;">torch.nn</code> loss function documentation.</p>
+  </div>
+
+</main>
+
+<!-- ============================================================ -->
+<!-- PRESENTER VIEW                                                -->
+<!-- ============================================================ -->
+<section class="presenter" id="presenter-view" aria-hidden="true">
+  <h1 class="presenter-title" id="presenter-title">How each loss <em>punishes</em> a mistake</h1>
+  <div class="widget-frame" id="presenter-widget-frame">
+    <!-- Widget will be moved here in presenter mode -->
+  </div>
+  <p class="presenter-caption" id="presenter-caption">
+    Drag the outlier. The coral line — MSE — chases it. The blue line — MAE — ignores it. The purple line — Huber — splits the difference.
+  </p>
+</section>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const state = {
+  view: 'learner',          // 'learner' | 'presenter'
+  mode: 'regression',       // 'regression' | 'classification' | 'calculator'
+
+  // Regression state
+  baseY: [-0.45, 0.30, -0.12, 0.55, -0.28, 0.18, 0.42, -0.35],  // 8 "good" points
+  baseX: [0.10, 0.22, 0.32, 0.44, 0.56, 0.66, 0.78, 0.88],
+  outlierX: 0.5,
+  outlierY: 1.8,            // current outlier y (draggable)
+  outlierStart: 1.8,
+  huberDelta: 1.0,
+
+  // Classification state
+  trueLabel: 1,
+  predProb: 0.85,
+
+  // Calculator state (4 data points, all editable)
+  calc: {
+    yTrue: [3.0, 5.0, 7.0, 2.0],
+    yPred: [3.2, 4.5, 9.0, 1.8],
+    yPredDefault: [3.2, 4.5, 9.0, 1.8],
+    delta: 1.0,            // Huber threshold for this widget
+  },
+};
+
+// ============================================================
+//  MATH HELPERS
+// ============================================================
+function mean(xs) { return xs.reduce((a,b)=>a+b, 0) / xs.length; }
+function median(xs) {
+  const s = [...xs].sort((a,b)=>a-b);
+  const n = s.length;
+  return n % 2 ? s[(n-1)/2] : (s[n/2-1] + s[n/2]) / 2;
+}
+function huberOptimum(ys, delta) {
+  // Find the constant prediction c that minimises sum of Huber losses.
+  // Use Newton-style search via golden-section over a wide range.
+  // Simple: scan with refinement.
+  let lo = Math.min(...ys) - 0.5, hi = Math.max(...ys) + 0.5;
+  for (let pass = 0; pass < 4; pass++) {
+    let bestC = lo, bestL = Infinity;
+    const N = 200;
+    for (let i = 0; i <= N; i++) {
+      const c = lo + (hi - lo) * i / N;
+      let L = 0;
+      for (const y of ys) {
+        const e = Math.abs(y - c);
+        L += e <= delta ? 0.5 * e * e : delta * (e - 0.5 * delta);
+      }
+      if (L < bestL) { bestL = L; bestC = c; }
+    }
+    const span = (hi - lo) / N * 4;
+    lo = bestC - span; hi = bestC + span;
+  }
+  return (lo + hi) / 2;
+}
+
+function allYs() { return state.baseY.concat([state.outlierY]); }
+
+// ============================================================
+//  VIEW TOGGLE
+// ============================================================
+const btnLearner = document.getElementById('btn-learner');
+const btnPresenter = document.getElementById('btn-presenter');
+const learnerView = document.getElementById('learner-view');
+const presenterView = document.getElementById('presenter-view');
+const widgetFrame = document.getElementById('widget-frame');
+const presenterFrame = document.getElementById('presenter-widget-frame');
+
+// Track the widget's original parent so we can return it
+let widgetOriginalParent = widgetFrame.parentElement;
+let widgetOriginalNextSibling = widgetFrame.nextElementSibling;
+
+function setView(view) {
+  state.view = view;
+  if (view === 'presenter') {
+    btnLearner.classList.remove('active');
+    btnPresenter.classList.add('active');
+    btnLearner.setAttribute('aria-selected', 'false');
+    btnPresenter.setAttribute('aria-selected', 'true');
+    learnerView.classList.add('hidden');
+    presenterView.classList.add('active');
+    presenterView.setAttribute('aria-hidden', 'false');
+
+    // Move widget into presenter container
+    presenterFrame.parentNode.insertBefore(widgetFrame, presenterFrame);
+    presenterFrame.style.display = 'none';
+  } else {
+    btnPresenter.classList.remove('active');
+    btnLearner.classList.add('active');
+    btnLearner.setAttribute('aria-selected', 'true');
+    btnPresenter.setAttribute('aria-selected', 'false');
+    learnerView.classList.remove('hidden');
+    presenterView.classList.remove('active');
+    presenterView.setAttribute('aria-hidden', 'true');
+
+    // Move widget back to learner
+    if (widgetOriginalNextSibling && widgetOriginalNextSibling.parentNode === widgetOriginalParent) {
+      widgetOriginalParent.insertBefore(widgetFrame, widgetOriginalNextSibling);
+    } else {
+      widgetOriginalParent.appendChild(widgetFrame);
+    }
+    presenterFrame.style.display = '';
+  }
+  // Redraw to fit new container
+  draw();
+}
+btnLearner.addEventListener('click', () => setView('learner'));
+btnPresenter.addEventListener('click', () => setView('presenter'));
+
+// ============================================================
+//  WIDGET TABS
+// ============================================================
+const tabReg = document.getElementById('tab-regression');
+const tabCls = document.getElementById('tab-classification');
+const tabCalc = document.getElementById('tab-calculator');
+const regControls = document.getElementById('regression-controls');
+const regReadout  = document.getElementById('readout-regression');
+const regLegend   = document.getElementById('regression-legend');
+const clsControls = document.getElementById('classification-controls');
+const clsReadout  = document.getElementById('readout-classification');
+const widgetStage = document.getElementById('widget-stage');
+const calcStage   = document.getElementById('calc-stage');
+const widgetCaption = document.getElementById('widget-caption');
+
+function setMode(mode) {
+  state.mode = mode;
+  const figureNote = document.getElementById('figure-note');
+  const presenterTitle = document.getElementById('presenter-title');
+  const presenterCaption = document.getElementById('presenter-caption');
+
+  // Reset tab states
+  tabReg.classList.remove('active');
+  tabCls.classList.remove('active');
+  tabCalc.classList.remove('active');
+
+  // Hide everything by default
+  widgetStage.style.display = 'none';
+  calcStage.style.display = 'none';
+  regControls.style.display = 'none';
+  regReadout.style.display  = 'none';
+  regLegend.style.display   = 'none';
+  clsControls.style.display = 'none';
+  clsReadout.style.display  = 'none';
+
+  if (mode === 'regression') {
+    tabReg.classList.add('active');
+    widgetStage.style.display = '';
+    regControls.style.display = '';
+    regReadout.style.display = '';
+    regLegend.style.display = '';
+    widgetCaption.textContent = 'Drag the orange dot. Watch what happens to the three best-fit lines as you pull the outlier farther from the cluster.';
+    if (figureNote) figureNote.textContent = 'Each horizontal line is the constant prediction that minimizes its loss across the eight points plus the outlier. Drag the outlier vertically.';
+    if (presenterTitle) presenterTitle.innerHTML = 'How each loss <em>punishes</em> a mistake';
+    if (presenterCaption) presenterCaption.textContent = 'Drag the outlier. The coral line — MSE — chases it. The blue line — MAE — ignores it. The purple line — Huber — splits the difference.';
+  } else if (mode === 'classification') {
+    tabCls.classList.add('active');
+    widgetStage.style.display = '';
+    clsControls.style.display = '';
+    clsReadout.style.display  = '';
+    widgetCaption.textContent = 'Drag the marker along the curve. See how cross-entropy explodes when the model is confidently wrong, but is gentle when uncertain.';
+    if (figureNote) figureNote.textContent = 'The curve is −log(p̂) when y=1, or −log(1−p̂) when y=0. Tiny loss for confident-correct, catastrophic loss for confident-wrong.';
+    if (presenterTitle) presenterTitle.innerHTML = 'Cross-entropy is <em>asymmetric</em>';
+    if (presenterCaption) presenterCaption.textContent = 'Drag the dot. A model that\u2019s confidently right gets a tiny loss. A model that\u2019s confidently wrong gets crushed. Uncertain in either direction is mild.';
+  } else {  // calculator
+    tabCalc.classList.add('active');
+    calcStage.style.display = '';
+    widgetCaption.textContent = 'Adjust each prediction with its slider. Watch the per-point terms — and the totals — recompute in real time.';
+    if (figureNote) figureNote.textContent = 'A toy dataset of four points. The largest error dominates MSE because it gets squared; MAE and Huber are far less affected.';
+    if (presenterTitle) presenterTitle.innerHTML = 'How one big error <em>dominates</em> MSE';
+    if (presenterCaption) presenterCaption.textContent = 'Adjust each prediction. The squared term grows fast — a single large error can outweigh every other point combined.';
+  }
+  draw();
+}
+tabReg.addEventListener('click', () => setMode('regression'));
+tabCls.addEventListener('click', () => setMode('classification'));
+tabCalc.addEventListener('click', () => setMode('calculator'));
+
+// ============================================================
+//  CONTROLS
+// ============================================================
+const huberSlider = document.getElementById('huber-delta');
+const huberValOut = document.getElementById('huber-delta-val');
+huberSlider.addEventListener('input', e => {
+  state.huberDelta = parseFloat(e.target.value);
+  huberValOut.textContent = state.huberDelta.toFixed(2);
+  draw();
+});
+
+document.getElementById('reset-regression').addEventListener('click', () => {
+  state.outlierY = state.outlierStart;
+  draw();
+});
+
+document.querySelectorAll('input[name="true-label"]').forEach(r => {
+  r.addEventListener('change', e => {
+    state.trueLabel = parseInt(e.target.value);
+    draw();
+  });
+});
+document.getElementById('reset-classification').addEventListener('click', () => {
+  state.predProb = 0.85;
+  state.trueLabel = 1;
+  document.getElementById('label-1').checked = true;
+  draw();
+});
+
+// ============================================================
+//  DRAW
+// ============================================================
+const stage = document.getElementById('widget-stage');
+
+function draw() {
+  if (state.mode === 'regression') drawRegression();
+  else if (state.mode === 'classification') drawClassification();
+  else drawCalculator();
+}
+
+function drawRegression() {
+  // Set up SVG dimensions to match container
+  const isPres = state.view === 'presenter';
+  const W = isPres ? 1000 : 660;
+  const H = isPres ? 480 : 380;
+  const padL = 60, padR = 30, padT = 30, padB = 40;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  // Fixed y range — does NOT expand with outlier position. This keeps the
+  // coordinate mapping (pxToY) stable during a drag, so the dot tracks the
+  // cursor consistently instead of feeling like it slips.
+  const yMin = -3.5, yMax = 3.5;
+  const xMin = 0, xMax = 1;
+
+  const xPx = x => padL + ((x - xMin) / (xMax - xMin)) * plotW;
+  const yPx = y => padT + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+  const pxToY = px => yMin + (1 - (px - padT) / plotH) * (yMax - yMin);
+
+  // Compute fits using ALL points (base + outlier)
+  const ys = allYs();
+  const mseFit   = mean(ys);
+  const maeFit   = median(ys);
+  const huberFit = huberOptimum(ys, state.huberDelta);
+
+  // Update readouts
+  document.getElementById('mse-val').textContent   = mseFit.toFixed(2);
+  document.getElementById('mae-val').textContent   = maeFit.toFixed(2);
+  document.getElementById('huber-val').textContent = huberFit.toFixed(2);
+
+  // Build SVG
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" aria-label="Scatter plot showing eight data points clustered around y=0 with one draggable outlier, and three horizontal best-fit lines for MSE (mean), MAE (median), and Huber loss">`;
+
+  // Background grid
+  svg += `<rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="var(--bg-soft)" rx="6" />`;
+
+  // Y-axis ticks at integer values within range
+  for (let yT = Math.ceil(yMin); yT <= Math.floor(yMax); yT++) {
+    if (yT === 0) {
+      svg += `<line x1="${padL}" x2="${padL + plotW}" y1="${yPx(yT)}" y2="${yPx(yT)}" stroke="var(--rule-strong)" stroke-width="1" stroke-dasharray="0" />`;
+    } else {
+      svg += `<line x1="${padL}" x2="${padL + plotW}" y1="${yPx(yT)}" y2="${yPx(yT)}" stroke="var(--rule)" stroke-width="0.5" stroke-dasharray="2,3" />`;
+    }
+    svg += `<text x="${padL - 10}" y="${yPx(yT) + 4}" text-anchor="end" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)">${yT.toFixed(1)}</text>`;
+  }
+
+  // Axis label
+  svg += `<text x="${padL - 42}" y="${padT + plotH/2}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)" transform="rotate(-90 ${padL - 42} ${padT + plotH/2})">target value y</text>`;
+
+  // The three fit lines
+  const lineWidth = isPres ? 3 : 2.5;
+  const fits = [
+    { value: mseFit,   color: 'var(--mse)',   label: 'MSE' },
+    { value: maeFit,   color: 'var(--mae)',   label: 'MAE' },
+    { value: huberFit, color: 'var(--huber)', label: 'Huber' },
+  ];
+  // Draw lines first (under points)
+  for (const f of fits) {
+    const py = yPx(f.value);
+    svg += `<line x1="${padL}" x2="${padL + plotW}" y1="${py}" y2="${py}" stroke="${f.color}" stroke-width="${lineWidth}" stroke-linecap="round" />`;
+  }
+  // Small color-coded dots on the LEFT edge of each line (no text labels — the
+  // readout cards below carry the values, and the lines stay readable even when
+  // they bunch close together).
+  for (const f of fits) {
+    const py = yPx(f.value);
+    svg += `<circle cx="${padL}" cy="${py}" r="4.5" fill="${f.color}" stroke="var(--bg-elev)" stroke-width="1.5" />`;
+  }
+
+  // Base points
+  const pointR = isPres ? 7 : 5.5;
+  for (let i = 0; i < state.baseX.length; i++) {
+    svg += `<circle cx="${xPx(state.baseX[i])}" cy="${yPx(state.baseY[i])}" r="${pointR}" fill="var(--ink-soft)" stroke="var(--bg-elev)" stroke-width="1.5" />`;
+  }
+
+  // Outlier point (draggable)
+  const outR = isPres ? 11 : 9;
+  const outX = xPx(state.outlierX);
+  const outY = yPx(state.outlierY);
+  // Tether line to show it's been pulled
+  svg += `<line x1="${outX}" x2="${outX}" y1="${yPx(0)}" y2="${outY}" stroke="var(--mse)" stroke-width="1" stroke-dasharray="3,4" opacity="0.4" />`;
+  svg += `<circle id="outlier-circle" cx="${outX}" cy="${outY}" r="${outR + 4}" fill="var(--mse)" opacity="0.15" />`;
+  svg += `<circle id="outlier-handle" cx="${outX}" cy="${outY}" r="${outR}" fill="var(--mse)" stroke="var(--bg-elev)" stroke-width="2" style="cursor: ns-resize;" />`;
+  svg += `<text x="${outX + outR + 8}" y="${outY + 4}" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)">drag me ↕</text>`;
+
+  stage.innerHTML = svg;
+
+  // Wire up dragging — robust version:
+  //   1. Capture an offset between the click point and the handle's center on
+  //      mousedown, so the dot doesn't teleport when you click off-center.
+  //   2. Re-query the SVG element inside each move event, because
+  //      drawRegression() replaces the SVG every frame; the original reference
+  //      would point to a detached element whose getScreenCTM() returns null.
+  const handle = document.getElementById('outlier-handle');
+  function startDrag(ev) {
+    ev.preventDefault();
+    const initialTouch = ev.touches ? ev.touches[0] : ev;
+    const rect = handle.getBoundingClientRect();
+    const offsetX = (rect.left + rect.width / 2) - initialTouch.clientX;
+    const offsetY = (rect.top + rect.height / 2) - initialTouch.clientY;
+
+    const move = (e) => {
+      const currentSvg = stage.querySelector('svg');
+      if (!currentSvg) return;
+      const ctm = currentSvg.getScreenCTM();
+      if (!ctm) return;
+      const t = e.touches ? e.touches[0] : e;
+      const pt = currentSvg.createSVGPoint();
+      pt.x = t.clientX + offsetX;
+      pt.y = t.clientY + offsetY;
+      const local = pt.matrixTransform(ctm.inverse());
+      let newY = pxToY(local.y);
+      newY = Math.max(yMin + 0.2, Math.min(yMax - 0.2, newY));
+      state.outlierY = newY;
+      drawRegression();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchmove', move);
+      window.removeEventListener('touchend', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+  }
+  handle.addEventListener('mousedown', startDrag);
+  handle.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+function drawClassification() {
+  const isPres = state.view === 'presenter';
+  const W = isPres ? 1000 : 660;
+  const H = isPres ? 480 : 380;
+  const padL = 70, padR = 30, padT = 40, padB = 50;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const pMin = 0.001, pMax = 0.999;
+  const lossMax = 7;
+  const xPx = p => padL + ((p - pMin) / (pMax - pMin)) * plotW;
+  const yPx = l => padT + (1 - l / lossMax) * plotH;
+  const pxToP = px => pMin + ((px - padL) / plotW) * (pMax - pMin);
+
+  function lossOf(p) {
+    // BCE for true label
+    if (state.trueLabel === 1) return -Math.log(Math.max(p, 1e-9));
+    else return -Math.log(Math.max(1 - p, 1e-9));
+  }
+
+  // Build curve path
+  let curve = '';
+  const steps = 200;
+  for (let i = 0; i <= steps; i++) {
+    const p = pMin + (pMax - pMin) * (i / steps);
+    const l = Math.min(lossOf(p), lossMax);
+    curve += (i === 0 ? 'M' : 'L') + xPx(p) + ' ' + yPx(l);
+  }
+
+  // Zones: confidently correct, uncertain, confidently wrong
+  // The "correct" side depends on the true label.
+  const lowZone   = { from: 0.0, to: 0.2 };
+  const midZone   = { from: 0.2, to: 0.8 };
+  const highZone  = { from: 0.8, to: 1.0 };
+
+  // For true label = 1: high prob = correct (good), low prob = wrong (bad)
+  // For true label = 0: low prob = correct (good), high prob = wrong (bad)
+  const correctZone = state.trueLabel === 1 ? highZone : lowZone;
+  const wrongZone   = state.trueLabel === 1 ? lowZone  : highZone;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" aria-label="Cross-entropy loss curve. Loss is near zero when predicted probability matches true label, and explodes when confidently wrong.">`;
+
+  // Plot background
+  svg += `<rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="var(--bg-soft)" rx="6" />`;
+
+  // Shaded zones
+  const zoneOpacity = 0.18;
+  svg += `<rect x="${xPx(correctZone.from)}" y="${padT}" width="${xPx(correctZone.to) - xPx(correctZone.from)}" height="${plotH}" fill="var(--good)" opacity="${zoneOpacity}" />`;
+  svg += `<rect x="${xPx(midZone.from)}" y="${padT}" width="${xPx(midZone.to) - xPx(midZone.from)}" height="${plotH}" fill="var(--caution)" opacity="${zoneOpacity * 0.6}" />`;
+  svg += `<rect x="${xPx(wrongZone.from)}" y="${padT}" width="${xPx(wrongZone.to) - xPx(wrongZone.from)}" height="${plotH}" fill="var(--bad)" opacity="${zoneOpacity}" />`;
+
+  // Zone labels — short, snug inside the plot so they don't clip
+  const labY = padT + 18;
+  const wrongMid = (xPx(wrongZone.from) + xPx(wrongZone.to)) / 2;
+  const midMid   = (xPx(midZone.from)   + xPx(midZone.to))   / 2;
+  const rightMid = (xPx(correctZone.from) + xPx(correctZone.to)) / 2;
+  svg += `<text x="${wrongMid}" y="${labY}" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" font-weight="500" fill="var(--bad)" letter-spacing="0.06em">WRONG</text>`;
+  svg += `<text x="${midMid}" y="${labY}" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" font-weight="500" fill="var(--caution)" letter-spacing="0.06em">UNCERTAIN</text>`;
+  svg += `<text x="${rightMid}" y="${labY}" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" font-weight="500" fill="var(--good)" letter-spacing="0.06em">RIGHT</text>`;
+
+  // Y axis ticks
+  for (let l = 0; l <= lossMax; l++) {
+    svg += `<line x1="${padL}" x2="${padL + plotW}" y1="${yPx(l)}" y2="${yPx(l)}" stroke="var(--rule)" stroke-width="0.5" stroke-dasharray="2,3" opacity="${l === 0 ? 1 : 0.6}" />`;
+    svg += `<text x="${padL - 10}" y="${yPx(l) + 4}" text-anchor="end" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)">${l}</text>`;
+  }
+  // X axis ticks
+  [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1].forEach(p => {
+    svg += `<line x1="${xPx(p)}" x2="${xPx(p)}" y1="${padT + plotH}" y2="${padT + plotH + 4}" stroke="var(--rule-strong)" stroke-width="1" />`;
+    svg += `<text x="${xPx(p)}" y="${padT + plotH + 18}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)">${p}</text>`;
+  });
+
+  // Axis labels
+  svg += `<text x="${padL - 50}" y="${padT + plotH/2}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)" transform="rotate(-90 ${padL - 50} ${padT + plotH/2})">loss</text>`;
+  svg += `<text x="${padL + plotW/2}" y="${padT + plotH + 36}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--ink-mute)">predicted probability p̂</text>`;
+
+  // The curve
+  const curveW = isPres ? 3.5 : 2.8;
+  svg += `<path d="${curve}" fill="none" stroke="var(--accent)" stroke-width="${curveW}" stroke-linecap="round" />`;
+
+  // Current point marker
+  const p = state.predProb;
+  const l = lossOf(p);
+  const cx = xPx(p);
+  const cy = yPx(Math.min(l, lossMax));
+  const markerR = isPres ? 11 : 9;
+  // Vertical drop line
+  svg += `<line x1="${cx}" x2="${cx}" y1="${cy}" y2="${padT + plotH}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3,4" opacity="0.5" />`;
+  // Horizontal to y-axis
+  svg += `<line x1="${padL}" x2="${cx}" y1="${cy}" y2="${cy}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3,4" opacity="0.5" />`;
+  svg += `<circle cx="${cx}" cy="${cy}" r="${markerR + 4}" fill="var(--accent)" opacity="0.18" />`;
+  svg += `<circle id="cls-handle" cx="${cx}" cy="${cy}" r="${markerR}" fill="var(--accent)" stroke="var(--bg-elev)" stroke-width="2" style="cursor: ew-resize;" />`;
+  svg += `<text x="${cx}" y="${padT + plotH + 36}" text-anchor="middle" font-family="var(--font-mono)" font-size="12" font-weight="500" fill="var(--accent)">p̂ = ${p.toFixed(2)}</text>`;
+
+  stage.innerHTML = svg;
+
+  // Update readout
+  document.getElementById('cls-loss-val').textContent = l < lossMax ? l.toFixed(2) : (lossMax + '+');
+  const tag = document.getElementById('cls-tag');
+  if (l < 0.3) { tag.textContent = 'confidently correct'; tag.className = 'cls-readout-tag cls-tag-good'; }
+  else if (l < 1.5) { tag.textContent = 'uncertain — mild penalty'; tag.className = 'cls-readout-tag cls-tag-meh'; }
+  else if (l < 3) { tag.textContent = 'wrong — moderate penalty'; tag.className = 'cls-readout-tag cls-tag-bad'; }
+  else { tag.textContent = 'confidently wrong — crushed'; tag.className = 'cls-readout-tag cls-tag-bad'; }
+
+  // Wire up dragging (same robust pattern as regression: capture click offset
+  // and re-query the SVG inside move because drawClassification() replaces it).
+  const handle = document.getElementById('cls-handle');
+  function startDrag(ev) {
+    ev.preventDefault();
+    const initialTouch = ev.touches ? ev.touches[0] : ev;
+    const rect = handle.getBoundingClientRect();
+    const offsetX = (rect.left + rect.width / 2) - initialTouch.clientX;
+    const offsetY = (rect.top + rect.height / 2) - initialTouch.clientY;
+
+    const move = (e) => {
+      const currentSvg = stage.querySelector('svg');
+      if (!currentSvg) return;
+      const ctm = currentSvg.getScreenCTM();
+      if (!ctm) return;
+      const t = e.touches ? e.touches[0] : e;
+      const pt = currentSvg.createSVGPoint();
+      pt.x = t.clientX + offsetX;
+      pt.y = t.clientY + offsetY;
+      const local = pt.matrixTransform(ctm.inverse());
+      let newP = pxToP(local.x);
+      newP = Math.max(pMin, Math.min(pMax, newP));
+      state.predProb = newP;
+      drawClassification();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchmove', move);
+      window.removeEventListener('touchend', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+  }
+  handle.addEventListener('mousedown', startDrag);
+  handle.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+// ============================================================
+//  CALCULATOR (step-by-step) RENDERER
+// ============================================================
+function huberPerPoint(e, delta) {
+  const a = Math.abs(e);
+  return a <= delta ? 0.5 * a * a : delta * (a - 0.5 * delta);
+}
+
+function drawCalculator() {
+  const cardsContainer = document.getElementById('calc-cards');
+  if (!cardsContainer) return;
+
+  const { yTrue, yPred } = state.calc;
+  const delta = state.calc.delta;
+  const n = yTrue.length;
+
+  // First pass — compute all per-point quantities
+  const errors = [], sqs = [], abss = [], hubs = [];
+  for (let i = 0; i < n; i++) {
+    const e = yPred[i] - yTrue[i];
+    errors.push(e);
+    sqs.push(e * e);
+    abss.push(Math.abs(e));
+    hubs.push(huberPerPoint(e, delta));
+  }
+  const sumSq    = sqs.reduce((a, b) => a + b, 0);
+  const sumAbs   = abss.reduce((a, b) => a + b, 0);
+  const sumHuber = hubs.reduce((a, b) => a + b, 0);
+  // Find the worst per-point absolute error so we can highlight it
+  const maxAbs = Math.max(...abss);
+
+  // Build/update the cards. Re-use existing slider DOM if the cards are already
+  // built (so the slider keeps focus while dragging).
+  if (cardsContainer.dataset.built !== 'true') {
+    let html = '';
+    for (let i = 0; i < n; i++) {
+      html += `
+        <div class="calc-card" data-point="${i+1}">
+          <div class="calc-card-top">
+            <span class="calc-card-point">point ${i+1}</span>
+            <div class="calc-card-truthrow">
+              <span><span class="label">y</span> <span class="val" id="calc-true-${i}">${yTrue[i].toFixed(1)}</span></span>
+              <span><span class="label">ŷ</span> <span class="val pred" id="calc-pred-${i}">—</span></span>
+              <span><span class="label">error</span> <span class="val err" id="calc-err-${i}">—</span></span>
+            </div>
+          </div>
+          <div class="calc-card-slider-row">
+            <span class="true-tick">−5</span>
+            <input type="range" class="calc-slider" id="calc-slider-${i}" min="-5" max="12" step="0.05" value="${yPred[i]}">
+            <span class="true-tick">+12</span>
+          </div>
+          <div class="calc-card-terms">
+            <div class="calc-term mse">
+              <div class="calc-term-label">squared</div>
+              <div class="calc-term-formula">e²</div>
+              <div class="calc-term-val" id="calc-sq-${i}">—</div>
+            </div>
+            <div class="calc-term mae">
+              <div class="calc-term-label">absolute</div>
+              <div class="calc-term-formula">|e|</div>
+              <div class="calc-term-val" id="calc-abs-${i}">—</div>
+            </div>
+            <div class="calc-term huber">
+              <div class="calc-term-label">Huber (δ=${delta})</div>
+              <div class="calc-term-formula">L<sub>δ</sub>(e)</div>
+              <div class="calc-term-val" id="calc-hub-${i}">—</div>
+            </div>
+          </div>
+        </div>`;
+    }
+    cardsContainer.innerHTML = html;
+    cardsContainer.dataset.built = 'true';
+    // Wire up sliders ONCE
+    for (let i = 0; i < n; i++) {
+      const sl = document.getElementById(`calc-slider-${i}`);
+      sl.addEventListener('input', (e) => {
+        state.calc.yPred[i] = parseFloat(e.target.value);
+        drawCalculator();
+      });
+    }
+  }
+
+  // Update text/values (every call)
+  for (let i = 0; i < n; i++) {
+    const sl = document.getElementById(`calc-slider-${i}`);
+    if (sl && parseFloat(sl.value) !== yPred[i]) sl.value = yPred[i];
+    document.getElementById(`calc-pred-${i}`).textContent = yPred[i].toFixed(2);
+    const errStr = (errors[i] >= 0 ? '+' : '') + errors[i].toFixed(2);
+    const errEl = document.getElementById(`calc-err-${i}`);
+    errEl.textContent = errStr;
+    // Color the error red when it's the biggest
+    errEl.classList.toggle('err-big', abss[i] === maxAbs && maxAbs > 0.5);
+    document.getElementById(`calc-sq-${i}`).textContent  = sqs[i].toFixed(3);
+    document.getElementById(`calc-abs-${i}`).textContent = abss[i].toFixed(3);
+    document.getElementById(`calc-hub-${i}`).textContent = hubs[i].toFixed(3);
+  }
+
+  // Update breakdown bars
+  // Each bar's TOTAL width is proportional to its sum, scaled so the largest
+  // of the three sums fills 100%. Segments within each bar are proportional
+  // to their per-point contribution.
+  const maxSum = Math.max(sumSq, sumAbs, sumHuber, 0.001);
+  function renderBar(sum, terms, barId) {
+    const bar = document.getElementById(barId);
+    if (!bar) return;
+    const widthPct = (sum / maxSum) * 100;
+    let inner = '';
+    for (let i = 0; i < n; i++) {
+      const segPct = sum > 0 ? (terms[i] / sum) * 100 : 0;
+      const label = segPct > 12 ? `P${i+1}` : (segPct > 4 ? `${i+1}` : '');
+      inner += `<div class="calc-bar-seg seg-p${i+1}" style="width: ${segPct}%" title="Point ${i+1}: ${terms[i].toFixed(3)}">${label}</div>`;
+    }
+    bar.style.width = widthPct + '%';
+    bar.innerHTML = inner;
+  }
+  renderBar(sumSq,    sqs,  'bar-mse');
+  renderBar(sumAbs,   abss, 'bar-mae');
+  renderBar(sumHuber, hubs, 'bar-huber');
+
+  document.getElementById('bar-mse-total').textContent   = sumSq.toFixed(2);
+  document.getElementById('bar-mae-total').textContent   = sumAbs.toFixed(2);
+  document.getElementById('bar-huber-total').textContent = sumHuber.toFixed(2);
+
+  document.getElementById('calc-mse-mean').textContent   = (sumSq    / n).toFixed(3);
+  document.getElementById('calc-mae-mean').textContent   = (sumAbs   / n).toFixed(3);
+  document.getElementById('calc-huber-mean').textContent = (sumHuber / n).toFixed(3);
+}
+
+// Reset button for calculator
+document.getElementById('reset-calculator').addEventListener('click', () => {
+  state.calc.yPred = [...state.calc.yPredDefault];
+  // Reset slider values
+  for (let i = 0; i < state.calc.yPred.length; i++) {
+    const sl = document.getElementById(`calc-slider-${i}`);
+    if (sl) sl.value = state.calc.yPred[i];
+  }
+  drawCalculator();
+});
+
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(draw, 100);
+});
+
+// ============================================================
+//  INITIAL RENDER
+// ============================================================
+draw();
+
+// Keyboard shortcut: 'p' / 'l' to toggle views
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'p' || e.key === 'P') setView('presenter');
+  if (e.key === 'l' || e.key === 'L') setView('learner');
+});
+
+</script>
+
+</body>
+</html>
