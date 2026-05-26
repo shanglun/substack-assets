@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CNN Lecture Deck — A Visual Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F0E4;--paper:#FBF7EC;--surface:#FFFCF3;
+    --ink:#1A1814;--ink-soft:#3D3832;--muted:#7A7368;
+    --hair:#D9D0BC;--hair-soft:#E6DEC9;--rule:#1A1814;
+    --accent:#1E3A5F;--accent-soft:#3A5680;
+    --rust:#B8543A;--rust-soft:#D8896E;
+    --sage:#5C7A4D;--highlight:#F4D35E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;align-items:center;padding:7vh 7vw;overflow:hidden}
+  .slide.active{display:flex;animation:fadeIn 280ms ease-out}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* Slide chrome */
+  .hud{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;gap:24px;padding:14px 28px;background:linear-gradient(to top,var(--bg) 60%,transparent);z-index:100;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);pointer-events:none}
+  .hud-section{flex-shrink:0}
+  .hud-progress{flex:1;height:1px;background:var(--hair);position:relative;max-width:480px}
+  .hud-progress-fill{position:absolute;left:0;top:0;height:100%;background:var(--rust);transition:width 300ms}
+  .hud-counter{flex-shrink:0;font-variant-numeric:tabular-nums}
+
+  .ctrls{position:fixed;bottom:50%;z-index:101;pointer-events:none}
+  .ctrls-left{left:18px}
+  .ctrls-right{right:18px}
+  .ctrl-btn{pointer-events:auto;width:42px;height:42px;border-radius:50%;border:1px solid var(--hair);background:var(--paper);color:var(--ink-soft);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 150ms;font-family:'Fraunces',serif}
+  .ctrl-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .ctrl-btn:disabled{opacity:0.3;cursor:not-allowed}
+  .ctrl-btn:disabled:hover{background:var(--paper);color:var(--ink-soft);border-color:var(--hair)}
+
+  /* Slide types ───────────────────────────────────────────── */
+
+  .slide-title-only h1{font-family:'Fraunces',serif;font-variation-settings:'opsz' 144,'wght' 350;font-size:clamp(54px,9vw,128px);line-height:0.94;letter-spacing:-0.035em;text-align:center;max-width:18ch}
+  .slide-title-only h1 em{font-style:italic;color:var(--rust)}
+  .slide-title-only .suptitle{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.25em;text-transform:uppercase;color:var(--rust);margin-bottom:36px}
+  .slide-title-only .subtitle{font-family:'Fraunces',serif;font-style:italic;font-variation-settings:'opsz' 24,'wght' 350;font-size:clamp(20px,2.2vw,28px);color:var(--ink-soft);margin-top:28px;max-width:32ch;text-align:center;line-height:1.4}
+  .slide-title-only .parts{display:flex;gap:48px;margin-top:60px;flex-wrap:wrap;justify-content:center}
+  .slide-title-only .parts .part{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)}
+  .slide-title-only .parts .part strong{color:var(--rust);display:block;margin-bottom:4px}
+
+  .slide-section{background:var(--ink);color:var(--paper)}
+  .slide-section .big-num{font-family:'Fraunces',serif;font-variation-settings:'opsz' 144,'wght' 300;font-style:italic;font-size:clamp(180px,28vw,360px);line-height:0.9;color:var(--rust);margin-bottom:24px}
+  .slide-section h1{font-family:'Fraunces',serif;font-variation-settings:'opsz' 144,'wght' 400;font-size:clamp(48px,7vw,96px);line-height:1;text-align:center;color:var(--paper)}
+  .slide-section .ptag{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.25em;text-transform:uppercase;color:var(--rust-soft);margin-bottom:0}
+
+  .slide-idea h2{font-family:'Fraunces',serif;font-variation-settings:'opsz' 96,'wght' 380;font-size:clamp(40px,5.5vw,80px);line-height:1.05;letter-spacing:-0.02em;text-align:center;max-width:22ch}
+  .slide-idea h2 em{font-style:italic;color:var(--rust)}
+  .slide-idea .support{font-family:'Fraunces',serif;font-style:italic;font-variation-settings:'opsz' 24,'wght' 350;font-size:clamp(20px,2vw,26px);color:var(--ink-soft);margin-top:40px;max-width:38ch;text-align:center;line-height:1.4}
+
+  .slide-tag{position:absolute;top:34px;left:7vw;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted)}
+  .slide-tag::before{content:"";display:inline-block;width:18px;height:1px;background:var(--rust);vertical-align:middle;margin-right:10px;margin-bottom:2px}
+
+  .slide-visual{justify-content:flex-start;padding-top:13vh}
+  .slide-visual h3{font-family:'Fraunces',serif;font-variation-settings:'opsz' 48,'wght' 450;font-size:clamp(28px,3.4vw,44px);line-height:1.15;text-align:center;margin-bottom:36px;max-width:24ch}
+  .slide-visual h3 em{font-style:italic;color:var(--rust)}
+  .slide-visual .vbody{display:flex;align-items:center;justify-content:center;flex:1;width:100%;min-height:0}
+  .slide-visual .vcap{font-family:'Fraunces',serif;font-style:italic;font-variation-settings:'opsz' 16,'wght' 350;font-size:16px;color:var(--muted);text-align:center;margin-top:24px;max-width:50ch;line-height:1.5}
+
+  /* Grids (interactives) ──────────────────────────────────── */
+
+  .grid{display:inline-grid;gap:1px;background:var(--hair);padding:1px}
+  .cell{display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--ink);font-family:'JetBrains Mono',monospace;font-weight:500;user-select:none;transition:background 250ms,color 250ms,box-shadow 150ms}
+  .cell.clk{cursor:pointer}
+  .cell.clk:hover{transform:scale(1.1);z-index:2;position:relative}
+  .cell.pad{color:var(--muted);background:#EFE9D9}
+  .cell.win{box-shadow:inset 0 0 0 2px var(--sage);z-index:1;position:relative}
+  .cell.cur{box-shadow:inset 0 0 0 2px var(--rust);z-index:1;position:relative}
+
+  .glabel{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;text-align:center}
+
+  .btn{padding:7px 14px;background:transparent;border:1px solid var(--hair);color:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 150ms;border-radius:0}
+  .btn:hover{background:var(--paper);border-color:var(--ink-soft)}
+  .btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+  .ctrl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:16px;font-size:13px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase}
+  .ctrl-row select{padding:5px 8px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;border-radius:0}
+
+  .stage{display:flex;gap:24px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+  .stage .col{display:flex;flex-direction:column;align-items:center}
+  .stage .arrow{align-self:center;padding-top:24px;font-family:'Fraunces',serif;font-size:24px;color:var(--muted)}
+
+  /* Convolution sandbox specific */
+  .conv-demo{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .conv-math{font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.8;color:var(--ink-soft);padding:14px 18px;background:var(--surface);border:1px solid var(--hair-soft);min-width:380px;text-align:left}
+  .conv-math .mhead{font-family:'Hanken Grotesk',sans-serif;font-size:12px;color:var(--ink);margin-bottom:6px;letter-spacing:0.02em}
+  .conv-math .mtot{color:var(--rust);font-weight:500;border-top:1px solid var(--hair);margin-top:6px;padding-top:6px;font-size:13px}
+
+  /* Filter response slide specific */
+  .resp-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+  .resp-card{display:flex;flex-direction:column;align-items:center;padding:12px;background:var(--surface);border:1px solid var(--hair-soft);min-width:130px}
+  .resp-card .resp-name{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink);margin-bottom:8px}
+
+  /* Training demo specific */
+  .train-stage-deck{display:grid;grid-template-columns:auto auto;gap:36px;align-items:start;justify-content:center}
+  .train-col-deck{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .train-pair-deck{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  .train-side-deck{display:flex;flex-direction:column;align-items:center}
+  .train-side-deck .head{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:10px}
+  .train-side-deck.target .head{color:var(--muted)}
+  .train-side-deck.learned .head{color:var(--rust)}
+  .train-block-deck{display:flex;flex-direction:column;align-items:center;margin-bottom:12px}
+  .train-block-deck .blbl{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:6px}
+  .stats-deck{display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin:18px 0 4px;padding:12px 0;border-top:1px solid var(--hair-soft);border-bottom:1px solid var(--hair-soft)}
+  .stat-deck{display:flex;flex-direction:column;align-items:center}
+  .stat-deck .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted)}
+  .stat-deck .val{font-family:'JetBrains Mono',monospace;font-size:20px;color:var(--ink);font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums}
+  .stat-deck .val.rust{color:var(--rust)}
+  .sparkline-deck{width:180px;height:42px}
+
+  /* Math display */
+  .math-display{font-family:'JetBrains Mono',monospace;font-size:clamp(18px,2vw,26px);line-height:1.8;background:var(--surface);border:1px solid var(--hair-soft);padding:32px 48px;color:var(--ink);text-align:left;max-width:90vw;overflow-x:auto}
+  .math-display em{font-style:normal;color:var(--rust)}
+  .math-display .where{display:block;font-size:14px;color:var(--muted);margin-top:18px;padding-top:14px;border-top:1px solid var(--hair-soft);line-height:1.6;font-family:'Hanken Grotesk',sans-serif;letter-spacing:normal}
+  .math-display .where span{display:block;margin-bottom:4px}
+
+  /* Ideal patches row */
+  .ideals{display:flex;gap:48px;justify-content:center;flex-wrap:wrap}
+  .ideal-card{display:flex;flex-direction:column;align-items:center;max-width:180px;text-align:center}
+  .ideal-card .ideal-name{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--rust);margin:14px 0 6px}
+  .ideal-card .ideal-desc{font-size:14px;color:var(--ink-soft);line-height:1.5;font-style:italic;font-family:'Fraunces',serif;font-variation-settings:'opsz' 14,'wght' 350}
+
+  /* Architecture stack */
+  .arch-stack{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding:24px 0;max-width:100%}
+  .lbox{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--ink);background:var(--paper);text-align:center;padding:10px 8px;position:relative}
+  .lbox .lname{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink);line-height:1.2}
+  .lbox .lsub{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--muted);margin-top:4px}
+  .larrow{flex-shrink:0;font-family:'Fraunces',serif;color:var(--rust);font-size:18px}
+
+  /* Hierarchy */
+  .hier-deck{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border:1px solid var(--ink);width:90vw;max-width:1100px}
+  .hier-cell-deck{padding:32px 24px;border-right:1px solid var(--hair);background:var(--paper)}
+  .hier-cell-deck:last-child{border-right:none}
+  .hier-cell-deck .depth{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--rust);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:12px}
+  .hier-cell-deck .htitle{font-family:'Fraunces',serif;font-variation-settings:'opsz' 24,'wght' 500;font-size:22px;margin-bottom:12px;color:var(--ink);line-height:1.2}
+  .hier-cell-deck .hdesc{font-size:14.5px;line-height:1.55;color:var(--ink-soft)}
+
+  /* Three architectures preset */
+  .preset-deck{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--ink);width:90vw;max-width:1100px}
+  .preset-cell-deck{padding:28px 24px;border-right:1px solid var(--hair);background:var(--paper)}
+  .preset-cell-deck:last-child{border-right:none}
+  .preset-cell-deck .ptag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--rust);margin-bottom:10px}
+  .preset-cell-deck .pname{font-family:'Fraunces',serif;font-variation-settings:'opsz' 28,'wght' 500;font-size:26px;margin-bottom:14px;line-height:1.15}
+  .preset-cell-deck .pspecs{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink-soft);line-height:1.8;margin-bottom:16px}
+  .preset-cell-deck .pdesc{font-size:14px;color:var(--ink-soft);line-height:1.55}
+
+  /* Two-up / three-up content layouts */
+  .twoup{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;max-width:1100px}
+  .twoup h4{font-family:'Fraunces',serif;font-variation-settings:'opsz' 24,'wght' 500;font-size:24px;margin-bottom:14px}
+  .twoup p{font-size:16px;line-height:1.55;color:var(--ink-soft)}
+  .twoup .num{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.2em;color:var(--rust);margin-bottom:10px;text-transform:uppercase}
+
+  /* Flow svg (forward/backward symmetry) */
+  .flow-wrap{max-width:1000px;width:100%;padding:36px;background:var(--surface);border:1px solid var(--hair-soft)}
+  .flow-wrap svg{width:100%;height:auto}
+
+  /* Speaker hint (tiny) */
+  .speaker-hint{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-family:'Fraunces',serif;font-style:italic;font-variation-settings:'opsz' 14,'wght' 350;font-size:14px;color:var(--muted);text-align:center;max-width:60ch}
+
+  /* Bullet list (sparing) */
+  .bullets{font-family:'Fraunces',serif;font-variation-settings:'opsz' 20,'wght' 400;font-size:clamp(18px,1.8vw,24px);line-height:1.7;list-style:none;padding:0}
+  .bullets li{padding-left:32px;position:relative;margin-bottom:14px}
+  .bullets li::before{content:"§";position:absolute;left:0;color:var(--rust);font-style:italic}
+  .bullets li strong{color:var(--ink);font-weight:500;font-family:'Hanken Grotesk',sans-serif;font-size:0.92em}
+
+  /* Mini grid (for inline diagrams) */
+  .mini-explain{display:flex;gap:60px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .mini-explain > div{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .mini-explain .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)}
+
+  ::selection{background:var(--highlight);color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+<!-- ─────────── 01. TITLE ─────────── -->
+<section class="slide slide-title-only active">
+  <div class="suptitle">Computer Vision Methods · A Visual Companion</div>
+  <h1>Convolutional<br>Neural <em>Networks</em></h1>
+  <div class="subtitle">How they see, what they look for, and how they learn to do either.</div>
+  <div class="parts">
+    <div class="part"><strong>Part I</strong>How a CNN sees</div>
+    <div class="part"><strong>Part II</strong>What lights up</div>
+    <div class="part"><strong>Part III</strong>How a filter learns</div>
+  </div>
+</section>
+
+<!-- ─────────── 02. PART I DIVIDER ─────────── -->
+<section class="slide slide-section">
+  <div class="ptag">Part One</div>
+  <div class="big-num">I.</div>
+  <h1>How a CNN sees.</h1>
+</section>
+
+<!-- ─────────── 03. THE PROBLEM ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">The problem with dense networks</div>
+  <h2>A dense network sees pixels as <em>strangers</em>.</h2>
+  <div class="support">Two pixels next to each other have no more relationship — as far as the network is concerned — than two pixels on opposite corners.</div>
+</section>
+
+<!-- ─────────── 04. TWO COMMITMENTS ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">The fix</div>
+  <h2>Two architectural <em>commitments</em>.</h2>
+  <ul class="bullets" style="margin-top:48px;text-align:left">
+    <li><strong>Locality.</strong> Neurons only look at small neighborhoods.</li>
+    <li><strong>Translation invariance.</strong> The same small filter gets reused everywhere.</li>
+  </ul>
+</section>
+
+<!-- ─────────── 05. THE OPERATION ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">The convolution operation</div>
+  <h3>A 3×3 filter <em>slides</em>, multiplies, sums.</h3>
+  <div class="vbody">
+    <div class="mini-explain">
+      <div><div class="lbl">image patch</div><div id="mini-patch" class="grid"></div></div>
+      <div style="font-family:'Fraunces',serif;font-size:32px;color:var(--rust)">×</div>
+      <div><div class="lbl">filter</div><div id="mini-filter" class="grid"></div></div>
+      <div style="font-family:'Fraunces',serif;font-size:32px;color:var(--rust)">=</div>
+      <div><div class="lbl">one output</div><div id="mini-out" style="font-family:'JetBrains Mono',monospace;font-size:40px;color:var(--rust);border:1px solid var(--rust);width:64px;height:64px;display:flex;align-items:center;justify-content:center">7</div></div>
+    </div>
+  </div>
+  <div class="vcap">Nine multiplies, eight adds, one output pixel. Then shift over and do it again.</div>
+</section>
+
+<!-- ─────────── 06. INTERACTIVE: CONVOLUTION SANDBOX ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Live · convolution sandbox</div>
+  <h3>Pick a filter. Click an output cell. <em>Watch the math.</em></h3>
+  <div class="vbody">
+    <div class="conv-demo">
+      <div class="btn-row" id="cs-picker">
+        <button class="btn on" data-cs="vedge">Vertical edge</button>
+        <button class="btn" data-cs="hedge">Horizontal edge</button>
+        <button class="btn" data-cs="sharpen">Sharpen</button>
+        <button class="btn" data-cs="blur">Blur</button>
+        <button class="btn" data-cs="identity">Identity</button>
+      </div>
+      <div class="stage">
+        <div class="col">
+          <div class="glabel">Input · 7×7</div>
+          <div id="cs-img" class="grid"></div>
+        </div>
+        <div class="arrow">×</div>
+        <div class="col">
+          <div class="glabel">Filter</div>
+          <div id="cs-filter" class="grid"></div>
+        </div>
+        <div class="arrow">=</div>
+        <div class="col">
+          <div class="glabel">Feature map · click cells</div>
+          <div id="cs-out" class="grid"></div>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <button class="btn" id="cs-play">▶ Play</button>
+        <button class="btn" id="cs-step">Step</button>
+        <button class="btn" id="cs-reset">Reset</button>
+        <span>Stride</span>
+        <select id="cs-stride"><option value="1" selected>1</option><option value="2">2</option></select>
+        <span>Pad</span>
+        <select id="cs-pad"><option value="0" selected>0</option><option value="1">1</option></select>
+      </div>
+      <div class="conv-math" id="cs-math"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 07. FILTERS AS QUESTIONS ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Filters as questions</div>
+  <h3>Each filter has an <em>ideal patch</em>.</h3>
+  <div class="vbody">
+    <div class="ideals" id="ideals"></div>
+  </div>
+  <div class="vcap">A filter fires strongest when the image patch under it looks like the filter itself. Dot product, maximized when aligned.</div>
+</section>
+
+<!-- ─────────── 08. STRIDE ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">Stride</div>
+  <h2>Bigger stride, <em>smaller</em> output.</h2>
+  <div class="support">The filter jumps multiple pixels per step. Cheaper to compute, coarser resolution. Stride 2 roughly halves the feature map.</div>
+</section>
+
+<!-- ─────────── 09. PADDING ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">Padding</div>
+  <h2>A ring of zeros to <em>keep size</em>.</h2>
+  <div class="support">Without padding, every conv layer shrinks the image — you run out of pixels before you can build a deep network. "Same" padding fixes that.</div>
+</section>
+
+<!-- ─────────── 10. POOLING ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Pooling</div>
+  <h3>Compress the feature map. Keep the <em>loudest signal</em>.</h3>
+  <div class="vbody">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+      <div class="btn-row" id="pl-picker">
+        <button class="btn on" data-pl="max">Max pool</button>
+        <button class="btn" data-pl="avg">Average pool</button>
+      </div>
+      <div class="stage">
+        <div class="col">
+          <div class="glabel">Input · 4×4</div>
+          <div id="pl-in" class="grid"></div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="col">
+          <div class="glabel">Output · 2×2</div>
+          <div id="pl-out" class="grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="vcap" id="pl-hint"></div>
+</section>
+
+<!-- ─────────── 11. FULL ARCHITECTURE ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Architecture</div>
+  <h3>Conv, pool, conv, pool, <em>flatten</em>, classify.</h3>
+  <div class="vbody">
+    <div class="arch-stack" id="arch-stack"></div>
+  </div>
+  <div class="vcap">Spatial dimensions shrink left-to-right. Channel depth grows. The classifier on the right reads a compact summary, not pixels.</div>
+</section>
+
+<!-- ─────────── 12. WHAT LAYERS LEARN ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Hierarchy of features</div>
+  <h3>Each layer builds on the <em>last</em>.</h3>
+  <div class="vbody">
+    <div class="hier-deck">
+      <div class="hier-cell-deck"><div class="depth">Layer 01</div><div class="htitle">Edges &amp; gradients</div><div class="hdesc">Bars and corners at various orientations. Almost identical to the edge detectors we played with.</div></div>
+      <div class="hier-cell-deck"><div class="depth">Layer 02–03</div><div class="htitle">Textures &amp; patterns</div><div class="hdesc">Combinations of edges. Stripes, dots, simple curves, repeating motifs.</div></div>
+      <div class="hier-cell-deck"><div class="depth">Layer 04–05</div><div class="htitle">Parts</div><div class="hdesc">Eyes, wheels, leaves, the tip of a rice grain. Semantically meaningful pieces of objects.</div></div>
+      <div class="hier-cell-deck"><div class="depth">Layer 06+</div><div class="htitle">Whole objects</div><div class="hdesc">Faces, cars, particular rice varieties. The hierarchy is not designed — it's what the math settles into.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 13. PART II DIVIDER ─────────── -->
+<section class="slide slide-section">
+  <div class="ptag">Part Two</div>
+  <div class="big-num">II.</div>
+  <h1>What lights up.</h1>
+</section>
+
+<!-- ─────────── 14. DOT PRODUCT INTUITION ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">The core insight</div>
+  <h2>A filter is a <em>dot product</em> wearing a costume.</h2>
+  <div class="support">Maximized when the patch and the filter point in the same direction. Every filter has an "ideal image" — the precise arrangement of pixels that would produce its maximum response.</div>
+</section>
+
+<!-- ─────────── 15. INTERACTIVE: FILTER RESPONSES ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Live · filter response sandbox</div>
+  <h3>Same four filters. <em>Six</em> kinds of picture.</h3>
+  <div class="vbody">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+      <div class="btn-row" id="fr-picker">
+        <button class="btn on" data-fr="vstripes">Vertical stripes</button>
+        <button class="btn" data-fr="hstripes">Horizontal stripes</button>
+        <button class="btn" data-fr="gradient">Gradient</button>
+        <button class="btn" data-fr="disk">Bright disk</button>
+        <button class="btn" data-fr="cross">Cross</button>
+        <button class="btn" data-fr="noise">Random texture</button>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div class="glabel">Input · 12×12</div>
+        <div id="fr-img" class="grid"></div>
+      </div>
+      <div class="resp-row" id="fr-resp"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 16. SIX LESSONS ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">The takeaways</div>
+  <h2>Six pictures, <em>six</em> lessons.</h2>
+  <ul class="bullets" style="margin-top:40px;text-align:left;max-width:42ch">
+    <li><strong>Orientation selectivity.</strong> Each filter fires on edges in its direction, ignores the rest.</li>
+    <li><strong>Filters ignore boring regions.</strong> Smooth gradients barely activate anything.</li>
+    <li><strong>Multiple filters together</strong> describe an object: where its edges are, where its center sits.</li>
+    <li><strong>Edge + edge nearby</strong> becomes a corner. That's what layer 2 will start looking for.</li>
+  </ul>
+</section>
+
+<!-- ─────────── 17. HYPERPARAM: 3x3 ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">Hyperparameter 01 · Filter size</div>
+  <h2>Use <em>3×3</em>. Everywhere.</h2>
+  <div class="support">Two stacked 3×3 layers see the same 5×5 receptive field but use fewer weights and add a non-linearity. More expressive, cheaper, easier to optimize.</div>
+</section>
+
+<!-- ─────────── 18. HYPERPARAM: PYRAMID ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">Hyperparameter 02 · Filter count</div>
+  <h2>Double the filters <em>each time</em> spatial size halves.</h2>
+  <div class="support">16 → 32 → 64 → 128. As spatial info shrinks, you can afford more channels. The "pyramid" pattern.</div>
+</section>
+
+<!-- ─────────── 19. HYPERPARAM: STRIDE+PAD ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">Hyperparameters 03 &amp; 04 · Downsampling and padding</div>
+  <h2>Stride 1 + 2×2 pool. <em>Same</em> padding.</h2>
+  <div class="support">Let pooling do the explicit downsampling. Keep conv layers shape-preserving so they compose freely. The modern alternative is stride-2 convolution — equally valid, learnable.</div>
+</section>
+
+<!-- ─────────── 20. THREE ARCHITECTURES ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Calibration</div>
+  <h3>Three architectures, <em>three orders of magnitude</em>.</h3>
+  <div class="vbody">
+    <div class="preset-deck">
+      <div class="preset-cell-deck">
+        <div class="ptag">Small</div>
+        <div class="pname">LeNet-style</div>
+        <div class="pspecs">2 conv layers<br>6 → 16 filters<br>5×5 filters<br>~60K params</div>
+        <div class="pdesc">The original. Designed for MNIST in 1998. A fine starting point for clean-background classification — including rice grains.</div>
+      </div>
+      <div class="preset-cell-deck">
+        <div class="ptag">Medium</div>
+        <div class="pname">VGG-style block</div>
+        <div class="pspecs">4 conv blocks<br>32 → 64 → 128 → 256<br>3×3 filters<br>~5M params</div>
+        <div class="pdesc">The workhorse from 2014. Clean, uniform, easy to reason about. Right size for most multi-class problems with tens of thousands of training samples.</div>
+      </div>
+      <div class="preset-cell-deck">
+        <div class="ptag">Large</div>
+        <div class="pname">ResNet-style</div>
+        <div class="pspecs">~50 conv layers<br>Skip connections<br>3×3 filters<br>~25M params</div>
+        <div class="pdesc">When you have a million images and a hundred classes. ImageNet, medical imaging, autonomous driving.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 21. RICE RECOMMENDATION ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">For the rice problem</div>
+  <h2>3 conv blocks · 16 / 32 / 64 filters · <em>~200K params</em>.</h2>
+  <div class="support">Adam at 0.001, batch size 64, early stopping on validation loss, augmentation with rotations and flips. Expect 98–99% test accuracy.</div>
+</section>
+
+<!-- ─────────── 22. PART III DIVIDER ─────────── -->
+<section class="slide slide-section">
+  <div class="ptag">Part Three</div>
+  <div class="big-num">III.</div>
+  <h1>How a filter learns.</h1>
+</section>
+
+<!-- ─────────── 23. THE QUESTION ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">What backprop is actually doing</div>
+  <h2>Would the loss go up or down if I nudged <em>this one weight</em>?</h2>
+  <div class="support">Answer that for every weight, every step. The gradient points downhill. Take a small step. The network gets slightly better. Repeat ten thousand times.</div>
+</section>
+
+<!-- ─────────── 24. ONE IN, TWO OUT ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">The conv layer in reverse</div>
+  <h3>One signal arrives. <em>Two</em> signals leave.</h3>
+  <div class="vbody">
+    <div class="flow-wrap">
+      <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1A1814"/></marker>
+          <marker id="arr-rust" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#B8543A"/></marker>
+        </defs>
+        <g font-family="JetBrains Mono, monospace" font-size="13" fill="#1A1814">
+          <rect x="40" y="40" width="120" height="48" fill="#FBF7EC" stroke="#1A1814" stroke-width="1"/>
+          <text x="100" y="60" text-anchor="middle" font-size="13">Input x</text>
+          <text x="100" y="76" text-anchor="middle" font-size="10" fill="#7A7368">image</text>
+          <rect x="290" y="40" width="140" height="48" fill="#FBF7EC" stroke="#1A1814" stroke-width="1"/>
+          <text x="360" y="60" text-anchor="middle" font-size="13">Conv layer (w)</text>
+          <text x="360" y="76" text-anchor="middle" font-size="10" fill="#7A7368">forward</text>
+          <rect x="560" y="40" width="120" height="48" fill="#FBF7EC" stroke="#1A1814" stroke-width="1"/>
+          <text x="620" y="60" text-anchor="middle" font-size="13">Output y</text>
+          <text x="620" y="76" text-anchor="middle" font-size="10" fill="#7A7368">feature map</text>
+          <line x1="160" y1="64" x2="290" y2="64" stroke="#1A1814" stroke-width="1.5" marker-end="url(#arr-r)"/>
+          <line x1="430" y1="64" x2="560" y2="64" stroke="#1A1814" stroke-width="1.5" marker-end="url(#arr-r)"/>
+        </g>
+        <g font-family="JetBrains Mono, monospace" font-size="13" fill="#B8543A">
+          <rect x="40" y="140" width="120" height="48" fill="#FBF7EC" stroke="#B8543A" stroke-width="1"/>
+          <text x="100" y="160" text-anchor="middle" font-size="13">∂L/∂x</text>
+          <text x="100" y="176" text-anchor="middle" font-size="10" fill="#7A7368">to previous layer</text>
+          <rect x="290" y="140" width="140" height="48" fill="#FBF7EC" stroke="#B8543A" stroke-width="1"/>
+          <text x="360" y="160" text-anchor="middle" font-size="13">Conv layer (w)</text>
+          <text x="360" y="176" text-anchor="middle" font-size="10" fill="#7A7368">backward</text>
+          <rect x="560" y="140" width="120" height="48" fill="#FBF7EC" stroke="#B8543A" stroke-width="1"/>
+          <text x="620" y="160" text-anchor="middle" font-size="13">∂L/∂y</text>
+          <text x="620" y="176" text-anchor="middle" font-size="10" fill="#7A7368">from next layer</text>
+          <line x1="290" y1="164" x2="160" y2="164" stroke="#B8543A" stroke-width="1.5" marker-end="url(#arr-rust)"/>
+          <line x1="560" y1="164" x2="430" y2="164" stroke="#B8543A" stroke-width="1.5" marker-end="url(#arr-rust)"/>
+        </g>
+        <g font-family="Fraunces, serif" font-style="italic" font-size="12" fill="#7A7368">
+          <line x1="360" y1="88" x2="360" y2="140" stroke="#B8543A" stroke-width="1" stroke-dasharray="2,3"/>
+          <text x="488" y="116" text-anchor="middle" fill="#1A1814" font-family="JetBrains Mono, monospace" font-size="11" font-style="normal">also: w ← w − lr·∂L/∂w</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 25. FILTER GRADIENT ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Output 1 of 2</div>
+  <h3>The <em>filter</em> gradient.</h3>
+  <div class="vbody">
+    <div class="math-display">
+      ∂L/∂w[a,b]  =  Σ<sub>i,j</sub>  (<em>∂L/∂y[i,j]</em>)  ×  x[i+a, j+b]
+      <span class="where">
+        <span>Each filter weight gets used at every output position.</span>
+        <span>Sum its contribution to error across <em>all</em> those positions.</span>
+        <span>That sum, scaled by the learning rate, is how much we nudge the weight.</span>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 26. INPUT GRADIENT ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Output 2 of 2</div>
+  <h3>The <em>input</em> gradient.</h3>
+  <div class="vbody">
+    <div class="math-display">
+      ∂L/∂x[m,n]  =  Σ<sub>i,j</sub>  (<em>∂L/∂y[i,j]</em>)  ×  w[m−i, n−j]
+      <span class="where">
+        <span>Each input pixel was used by multiple output positions.</span>
+        <span>Collect their gradient contributions, weighted by the filter weight that touched it there.</span>
+        <span>Hand the result down to the previous layer.</span>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 27. BOTH ARE CONVOLUTIONS ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">The elegant fact</div>
+  <h2>Backprop through a conv layer <em>is</em> a convolution.</h2>
+  <div class="support">Forward: conv(x, w). Backward: conv(x, ∂L/∂y) for the weight gradient. Conv(∂L/∂y, flipped w) for the input gradient. Same hardware. Same kernels. Same operation, just running in different directions.</div>
+</section>
+
+<!-- ─────────── 28. WATCH IT LEARN ─────────── -->
+<section class="slide slide-visual">
+  <div class="slide-tag">Live · backprop in motion</div>
+  <h3>A filter starts <em>random</em>. Hit Run.</h3>
+  <div class="vbody">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+      <div class="btn-row" id="tr-picker">
+        <button class="btn on" data-tr="vedge">Learn vertical edge</button>
+        <button class="btn" data-tr="hedge">Learn horizontal edge</button>
+        <button class="btn" data-tr="blob">Learn blob detector</button>
+        <button class="btn" data-tr="blur">Learn blur</button>
+      </div>
+      <div class="train-stage-deck">
+        <div class="train-col-deck">
+          <div class="glabel">Input · 7×7 fixed</div>
+          <div id="tr-input" class="grid"></div>
+        </div>
+        <div class="train-col-deck">
+          <div class="train-pair-deck">
+            <div class="train-side-deck target">
+              <div class="head">— Target —</div>
+              <div class="train-block-deck"><div class="blbl">filter</div><div id="tr-tfilter" class="grid"></div></div>
+              <div class="train-block-deck"><div class="blbl">output</div><div id="tr-toutput" class="grid"></div></div>
+            </div>
+            <div class="train-side-deck learned">
+              <div class="head">— Learned —</div>
+              <div class="train-block-deck"><div class="blbl">filter</div><div id="tr-lfilter" class="grid"></div></div>
+              <div class="train-block-deck"><div class="blbl">output</div><div id="tr-loutput" class="grid"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-deck">
+        <div class="stat-deck"><div class="lbl">Step</div><div class="val" id="tr-step">0</div></div>
+        <div class="stat-deck"><div class="lbl">Loss (MSE)</div><div class="val rust" id="tr-loss">—</div></div>
+        <div class="stat-deck"><div class="lbl">Over time</div><svg class="sparkline-deck" id="tr-spark" viewBox="0 0 180 42" preserveAspectRatio="none"></svg></div>
+      </div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn" id="tr-run">▶ Run</button>
+        <button class="btn" id="tr-step-btn">Step</button>
+        <button class="btn" id="tr-reset">Reset filter</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 29. WEIGHT SHARING ─────────── -->
+<section class="slide slide-idea">
+  <div class="slide-tag">The hidden advantage</div>
+  <h2>One filter, <em>thousands</em> of gradient updates per image.</h2>
+  <div class="support">In a dense layer, each weight is used once per example — one gradient contribution. In a conv layer, each weight is used at every spatial position. Two orders of magnitude more learning signal per parameter.</div>
+</section>
+
+<!-- ─────────── 30. THE END ─────────── -->
+<section class="slide slide-title-only">
+  <div class="suptitle">End of lecture</div>
+  <h1>Locality. Hierarchy.<br><em>Backprop</em>.</h1>
+  <div class="subtitle">That's the whole story. The rest is engineering — choosing the right number of layers, the right filter counts, the right learning rate, and giving it enough data to find a good local minimum.</div>
+  <div class="parts">
+    <div class="part"><strong>Questions</strong>welcome</div>
+  </div>
+</section>
+
+</div>
+
+<!-- Navigation HUD -->
+<div class="ctrls ctrls-left"><button class="ctrl-btn" id="prev-btn" aria-label="Previous">‹</button></div>
+<div class="ctrls ctrls-right"><button class="ctrl-btn" id="next-btn" aria-label="Next">›</button></div>
+
+<div class="hud">
+  <div class="hud-section" id="hud-section">Title</div>
+  <div class="hud-progress"><div class="hud-progress-fill" id="hud-fill"></div></div>
+  <div class="hud-counter" id="hud-counter">01 / 30</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+const slides = Array.from(document.querySelectorAll('.slide'));
+let current = 0;
+
+// Section labels for HUD (by slide index)
+const SECTION_OF = i => {
+  if (i === 0) return 'Title';
+  if (i <= 11) return 'Part I · How a CNN sees';
+  if (i === 12) return 'Part II · What lights up';
+  if (i <= 20) return 'Part II · What lights up';
+  if (i === 21) return 'Part III · How a filter learns';
+  return 'Part III · How a filter learns';
+};
+
+function show(i) {
+  if (i < 0 || i >= slides.length || i === current) return;
+  slides[current].classList.remove('active');
+  current = i;
+  slides[current].classList.add('active');
+  updateHUD();
+  if (location.hash !== '#' + (i+1)) {
+    history.replaceState(null, '', '#' + (i+1));
+  }
+}
+function next() { if (current < slides.length-1) show(current+1); }
+function prev() { if (current > 0) show(current-1); }
+function updateHUD() {
+  document.getElementById('hud-section').textContent = SECTION_OF(current);
+  document.getElementById('hud-counter').textContent = String(current+1).padStart(2,'0') + ' / ' + String(slides.length).padStart(2,'0');
+  document.getElementById('hud-fill').style.width = ((current+1) / slides.length * 100) + '%';
+  document.getElementById('prev-btn').disabled = current === 0;
+  document.getElementById('next-btn').disabled = current === slides.length-1;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('select, input, button')) return;
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  else if (e.key === 'Home') { e.preventDefault(); show(0); }
+  else if (e.key === 'End') { e.preventDefault(); show(slides.length-1); }
+});
+document.getElementById('prev-btn').addEventListener('click', prev);
+document.getElementById('next-btn').addEventListener('click', next);
+
+// Hash navigation on load
+window.addEventListener('load', () => {
+  const h = parseInt(location.hash.replace('#',''), 10);
+  if (!isNaN(h) && h >= 1 && h <= slides.length) show(h-1);
+  else updateHUD();
+});
+updateHUD();
+
+// ═══════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ═══════════════════════════════════════════════════════════
+const STEEL = ['#FBF7EC','#D8E0E8','#A8B8CA','#5C7A8E','#1E3A5F','#10243D'];
+const RUST = ['#FBF7EC','#F0E0D0','#E8C4A8','#D8896E','#B8543A','#7A2F1E'];
+const SAGE = ['#FBF7EC','#E2E8DA','#C5D2B5','#9DB088','#5C7A4D','#3A5230'];
+
+function shade(val, maxAbs, palette) {
+  if (maxAbs < 1e-6) return { bg: '#FBF7EC', fg: '#7A7368' };
+  const r = Math.max(0, Math.min(1, Math.abs(val) / maxAbs));
+  const i = Math.min(Math.floor(r * 6), 5);
+  return { bg: palette[i], fg: i >= 3 ? '#FBF7EC' : '#1A1814' };
+}
+function shadeSigned(v, maxAbs) {
+  return shade(v, maxAbs, v >= 0 ? RUST : SAGE);
+}
+function shadeInput(v) {
+  const r = Math.max(0, Math.min(1, v / 9));
+  const i = Math.min(Math.floor(r * 6), 5);
+  return { bg: STEEL[i], fg: i >= 3 ? '#FBF7EC' : '#1A1814' };
+}
+function conv(input, filter, divisor) {
+  const N = input.length, F = filter.length;
+  const out = [];
+  for (let i = 0; i < N-F+1; i++) {
+    const row = [];
+    for (let j = 0; j < N-F+1; j++) {
+      let s = 0;
+      for (let a = 0; a < F; a++) for (let b = 0; b < F; b++) s += filter[a][b] * input[i+a][j+b];
+      row.push(s / (divisor || 1));
+    }
+    out.push(row);
+  }
+  return out;
+}
+function fmt(v, d) {
+  if (Math.abs(v) < 0.005 && d === 2) return '0.00';
+  return Number.isInteger(v) ? String(v) : (Math.round(v * Math.pow(10,d||1)) / Math.pow(10,d||1)).toString();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 05: mini convolution diagram
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const patch = [[1,1,1],[1,1,1],[8,8,8]];
+  const filt = [[-1,-1,-1],[0,0,0],[1,1,1]];
+  const renderMini = (id, mat, palette, maxAbs) => {
+    const g = document.getElementById(id);
+    g.style.gridTemplateColumns = 'repeat(3, 36px)';
+    g.innerHTML = '';
+    const m = maxAbs || Math.max(...mat.flat().map(Math.abs), 1);
+    mat.flat().forEach(v => {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      c.style.width = '36px';
+      c.style.height = '36px';
+      c.style.fontSize = '13px';
+      const sh = palette === 'input' ? shadeInput(v) : shade(v, m, palette === 'rust' ? RUST : (v < 0 ? SAGE : RUST));
+      c.style.background = sh.bg;
+      c.style.color = sh.fg;
+      c.textContent = v;
+      g.appendChild(c);
+    });
+  };
+  renderMini('mini-patch', patch, 'input');
+  renderMini('mini-filter', filt, 'rust', 1);
+})();
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 06: CONVOLUTION SANDBOX
+// ═══════════════════════════════════════════════════════════
+const CS_IMG = [[1,1,1,8,1,1,1],[1,1,1,8,1,1,1],[1,1,1,8,1,1,1],[8,8,8,8,8,8,8],[1,1,1,8,1,1,1],[1,1,1,8,1,1,1],[1,1,1,8,1,1,1]];
+const CS_FILTERS = {
+  vedge:{name:'Vertical edge',mat:[[-1,0,1],[-1,0,1],[-1,0,1]]},
+  hedge:{name:'Horizontal edge',mat:[[-1,-1,-1],[0,0,0],[1,1,1]]},
+  sharpen:{name:'Sharpen',mat:[[0,-1,0],[-1,5,-1],[0,-1,0]]},
+  blur:{name:'Blur',mat:[[1,1,1],[1,1,1],[1,1,1]],divisor:9},
+  identity:{name:'Identity',mat:[[0,0,0],[0,1,0],[0,0,0]]}
+};
+let CS = { filter:'vedge', stride:1, pad:0, curR:0, curC:0, output:[], padImg:[], outN:5, playing:false, timer:null };
+
+function csCompute() {
+  const f = CS_FILTERS[CS.filter];
+  const div = f.divisor || 1;
+  const padN = 7 + 2*CS.pad;
+  const padImg = Array.from({length:padN}, () => new Array(padN).fill(0));
+  for (let r=0;r<7;r++) for (let c=0;c<7;c++) padImg[r+CS.pad][c+CS.pad] = CS_IMG[r][c];
+  const outN = Math.floor((padN-3)/CS.stride) + 1;
+  const out = [];
+  for (let or=0; or<outN; or++) {
+    const row = [];
+    for (let oc=0; oc<outN; oc++) {
+      let s = 0;
+      for (let fr=0; fr<3; fr++) for (let fc=0; fc<3; fc++) s += padImg[or*CS.stride+fr][oc*CS.stride+fc] * f.mat[fr][fc];
+      row.push(s/div);
+    }
+    out.push(row);
+  }
+  CS.padImg = padImg; CS.output = out; CS.outN = outN;
+  if (CS.curR >= outN) CS.curR = 0;
+  if (CS.curC >= outN) CS.curC = 0;
+}
+function csRenderImg() {
+  const g = document.getElementById('cs-img');
+  const n = 7 + 2*CS.pad;
+  g.style.gridTemplateColumns = `repeat(${n}, 30px)`;
+  g.innerHTML = '';
+  const winR = CS.curR*CS.stride, winC = CS.curC*CS.stride;
+  for (let r=0; r<n; r++) for (let c=0; c<n; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.width = '30px'; cell.style.height = '30px'; cell.style.fontSize = '11px';
+    const isPad = r<CS.pad || r>=7+CS.pad || c<CS.pad || c>=7+CS.pad;
+    const v = CS.padImg[r][c];
+    if (isPad) { cell.classList.add('pad'); cell.textContent = '0'; }
+    else {
+      const sh = shadeInput(v);
+      cell.style.background = sh.bg; cell.style.color = sh.fg; cell.textContent = v;
+    }
+    if (r>=winR && r<winR+3 && c>=winC && c<winC+3) cell.classList.add('win');
+    g.appendChild(cell);
+  }
+}
+function csRenderFilter() {
+  const g = document.getElementById('cs-filter');
+  const f = CS_FILTERS[CS.filter];
+  g.style.gridTemplateColumns = 'repeat(3, 30px)';
+  g.innerHTML = '';
+  const maxAbs = Math.max(...f.mat.flat().map(Math.abs), 1);
+  for (let fr=0; fr<3; fr++) for (let fc=0; fc<3; fc++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.width = '30px'; cell.style.height = '30px'; cell.style.fontSize = '11px';
+    const v = f.mat[fr][fc];
+    const sh = shade(v, maxAbs, v < 0 ? SAGE : RUST);
+    cell.style.background = sh.bg; cell.style.color = sh.fg; cell.textContent = v;
+    g.appendChild(cell);
+  }
+}
+function csRenderOut() {
+  const g = document.getElementById('cs-out');
+  g.style.gridTemplateColumns = `repeat(${CS.outN}, 30px)`;
+  g.innerHTML = '';
+  const flat = CS.output.flat();
+  const maxAbs = Math.max(...flat.map(Math.abs), 1);
+  for (let r=0; r<CS.outN; r++) for (let c=0; c<CS.outN; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell clk';
+    cell.style.width = '30px'; cell.style.height = '30px'; cell.style.fontSize = '11px';
+    const v = CS.output[r][c];
+    const sh = shadeSigned(v, maxAbs);
+    cell.style.background = sh.bg; cell.style.color = sh.fg; cell.textContent = fmt(v, 1);
+    if (r === CS.curR && c === CS.curC) cell.classList.add('cur');
+    cell.addEventListener('click', () => { CS.curR=r; CS.curC=c; csStop(); csRenderImg(); csRenderOut(); csUpdateMath(); });
+    g.appendChild(cell);
+  }
+}
+function csUpdateMath() {
+  const f = CS_FILTERS[CS.filter];
+  const div = f.divisor || 1;
+  const winR = CS.curR*CS.stride, winC = CS.curC*CS.stride;
+  const p = document.getElementById('cs-math');
+  let html = `<div class="mhead">Output (${CS.curR}, ${CS.curC}) · ${f.name}</div>`;
+  const rowSums = [];
+  for (let fr=0; fr<3; fr++) {
+    const parts = [];
+    let rs = 0;
+    for (let fc=0; fc<3; fc++) {
+      const iv = CS.padImg[winR+fr][winC+fc];
+      const fv = f.mat[fr][fc];
+      rs += iv*fv;
+      parts.push(`(${fv >= 0 ? ' ' + fv : fv}×${iv})`);
+    }
+    rowSums.push(rs);
+    html += `<div>${parts.join(' + ')}  =  ${rs}</div>`;
+  }
+  const total = rowSums.reduce((a,b)=>a+b,0);
+  if (div !== 1) html += `<div class="mtot">sum ${total} ÷ ${div}  →  ${fmt(total/div,1)}</div>`;
+  else html += `<div class="mtot">sum  →  ${total}</div>`;
+  p.innerHTML = html;
+}
+function csRender() { csRenderImg(); csRenderFilter(); csRenderOut(); csUpdateMath(); }
+function csStep() {
+  CS.curC++;
+  if (CS.curC >= CS.outN) { CS.curC = 0; CS.curR++; }
+  if (CS.curR >= CS.outN) { CS.curR = 0; CS.curC = 0; csStop(); }
+  csRenderImg(); csRenderOut(); csUpdateMath();
+}
+function csPlay() {
+  if (CS.playing) return;
+  CS.playing = true;
+  document.getElementById('cs-play').textContent = '❚❚ Pause';
+  CS.timer = setInterval(csStep, 450);
+}
+function csStop() {
+  CS.playing = false;
+  if (CS.timer) { clearInterval(CS.timer); CS.timer = null; }
+  document.getElementById('cs-play').textContent = '▶ Play';
+}
+document.getElementById('cs-play').addEventListener('click', () => { CS.playing ? csStop() : csPlay(); });
+document.getElementById('cs-step').addEventListener('click', () => { csStop(); csStep(); });
+document.getElementById('cs-reset').addEventListener('click', () => { csStop(); CS.curR=0; CS.curC=0; csRenderImg(); csRenderOut(); csUpdateMath(); });
+document.getElementById('cs-stride').addEventListener('change', e => { csStop(); CS.stride = +e.target.value; CS.curR=0; CS.curC=0; csCompute(); csRender(); });
+document.getElementById('cs-pad').addEventListener('change', e => { csStop(); CS.pad = +e.target.value; CS.curR=0; CS.curC=0; csCompute(); csRender(); });
+document.getElementById('cs-picker').addEventListener('click', e => {
+  const b = e.target.closest('[data-cs]'); if (!b) return;
+  csStop();
+  document.querySelectorAll('#cs-picker .btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  CS.filter = b.dataset.cs; CS.curR=0; CS.curC=0;
+  csCompute(); csRender();
+});
+csCompute(); csRender();
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 07: IDEAL PATCHES
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const ideals = [
+    { name:'Vertical edge', desc:'Dark column, bright column', cells:[[0,4,8],[0,4,8],[0,4,8]] },
+    { name:'Horizontal edge', desc:'Dark row above, bright below', cells:[[0,0,0],[4,4,4],[8,8,8]] },
+    { name:'Blob (spot)', desc:'Bright center, dark surround', cells:[[1,1,1],[1,9,1],[1,1,1]] },
+    { name:'Diagonal', desc:'Slope across the patch', cells:[[0,2,5],[2,5,8],[5,8,9]] }
+  ];
+  const row = document.getElementById('ideals');
+  ideals.forEach(id => {
+    const card = document.createElement('div');
+    card.className = 'ideal-card';
+    const g = document.createElement('div');
+    g.className = 'grid';
+    g.style.gridTemplateColumns = 'repeat(3, 42px)';
+    id.cells.flat().forEach(v => {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      c.style.width = '42px'; c.style.height = '42px'; c.style.fontSize = '14px';
+      const sh = shadeInput(v);
+      c.style.background = sh.bg; c.style.color = sh.fg; c.textContent = v;
+      g.appendChild(c);
+    });
+    card.appendChild(g);
+    const n = document.createElement('div'); n.className = 'ideal-name'; n.textContent = id.name; card.appendChild(n);
+    const d = document.createElement('div'); d.className = 'ideal-desc'; d.textContent = id.desc; card.appendChild(d);
+    row.appendChild(card);
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 10: POOLING
+// ═══════════════════════════════════════════════════════════
+const POOL_IMG = [[3,1,7,2],[4,6,8,9],[5,2,1,0],[3,4,6,7]];
+let POOL = { mode: 'max' };
+function poolOut() {
+  const out = [[0,0],[0,0]];
+  for (let r=0; r<2; r++) for (let c=0; c<2; c++) {
+    const vs = [POOL_IMG[r*2][c*2], POOL_IMG[r*2][c*2+1], POOL_IMG[r*2+1][c*2], POOL_IMG[r*2+1][c*2+1]];
+    out[r][c] = POOL.mode === 'max' ? Math.max(...vs) : vs.reduce((a,b)=>a+b,0)/4;
+  }
+  return out;
+}
+function poolMaxCoord(r,c) {
+  let m=-Infinity, mr=0, mc=0;
+  for (let rr=0; rr<2; rr++) for (let cc=0; cc<2; cc++) {
+    const v = POOL_IMG[r*2+rr][c*2+cc];
+    if (v > m) { m = v; mr = r*2+rr; mc = c*2+cc; }
+  }
+  return [mr, mc];
+}
+function renderPool() {
+  const inG = document.getElementById('pl-in');
+  inG.style.gridTemplateColumns = 'repeat(4, 36px)';
+  inG.innerHTML = '';
+  const winBg = ['#EDE3CA','#D8E0E8','#E0E5D4','#F0E0D0'];
+  const maxes = [poolMaxCoord(0,0), poolMaxCoord(0,1), poolMaxCoord(1,0), poolMaxCoord(1,1)];
+  for (let r=0; r<4; r++) for (let c=0; c<4; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.width = '36px'; cell.style.height = '36px'; cell.style.fontSize = '13px';
+    const wr = Math.floor(r/2), wc = Math.floor(c/2);
+    const wi = wr*2 + wc;
+    cell.style.background = winBg[wi]; cell.style.color = '#1A1814';
+    cell.textContent = POOL_IMG[r][c];
+    if (POOL.mode === 'max') {
+      const [mr, mc] = maxes[wi];
+      if (r === mr && c === mc) { cell.style.background = '#1A1814'; cell.style.color = '#FBF7EC'; }
+    }
+    inG.appendChild(cell);
+  }
+  const outG = document.getElementById('pl-out');
+  outG.style.gridTemplateColumns = 'repeat(2, 36px)';
+  outG.innerHTML = '';
+  const out = poolOut();
+  const outBg = ['#EDE3CA','#D8E0E8','#E0E5D4','#F0E0D0'];
+  for (let r=0; r<2; r++) for (let c=0; c<2; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.width = '36px'; cell.style.height = '36px'; cell.style.fontSize = '13px';
+    cell.style.background = outBg[r*2+c]; cell.style.color = '#1A1814';
+    cell.textContent = fmt(out[r][c], 1);
+    outG.appendChild(cell);
+  }
+  document.getElementById('pl-hint').textContent = POOL.mode === 'max'
+    ? 'Max pool keeps only the strongest value from each colored block — the dark cells are the winners.'
+    : 'Average pool replaces each colored block with the mean of its four numbers — the sharp peaks get smoothed away.';
+}
+document.getElementById('pl-picker').addEventListener('click', e => {
+  const b = e.target.closest('[data-pl]'); if (!b) return;
+  document.querySelectorAll('#pl-picker .btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  POOL.mode = b.dataset.pl;
+  renderPool();
+});
+renderPool();
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 11: ARCHITECTURE STACK
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const stack = document.getElementById('arch-stack');
+  const layers = [
+    {name:'Input', sub:'128×128×3', w:78, h:82},
+    {name:'Conv', sub:'126×126×16', w:74, h:78},
+    {name:'Pool', sub:'63×63×16', w:58, h:60},
+    {name:'Conv', sub:'61×61×32', w:56, h:58},
+    {name:'Pool', sub:'30×30×32', w:42, h:44},
+    {name:'Conv', sub:'28×28×64', w:40, h:42},
+    {name:'Pool', sub:'14×14×64', w:30, h:32},
+    {name:'Flatten', sub:'12544', w:22, h:86},
+    {name:'Dense', sub:'128', w:22, h:66},
+    {name:'Output', sub:'5 classes', w:22, h:42}
+  ];
+  layers.forEach((l, i) => {
+    const b = document.createElement('div');
+    b.className = 'lbox';
+    b.style.width = l.w + 'px';
+    b.style.minHeight = l.h + 'px';
+    b.innerHTML = `<div class="lname">${l.name}</div><div class="lsub">${l.sub}</div>`;
+    stack.appendChild(b);
+    if (i < layers.length-1) {
+      const a = document.createElement('div'); a.className = 'larrow'; a.textContent = '→'; stack.appendChild(a);
+    }
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 15: FILTER RESPONSE SANDBOX
+// ═══════════════════════════════════════════════════════════
+const FR_FILTERS = [
+  { id:'vedge', name:'Vertical edge', mat:[[-1,0,1],[-1,0,1],[-1,0,1]] },
+  { id:'hedge', name:'Horizontal edge', mat:[[-1,-1,-1],[0,0,0],[1,1,1]] },
+  { id:'blob', name:'Blob (spot)', mat:[[-1,-1,-1],[-1,8,-1],[-1,-1,-1]] },
+  { id:'diag', name:'Diagonal', mat:[[0,1,1],[-1,0,1],[-1,-1,0]] }
+];
+const FR_IMAGES = {
+  vstripes: () => { const o=[]; for (let r=0;r<12;r++){const row=[];for (let c=0;c<12;c++) row.push(Math.floor(c/2)%2===0?1:8); o.push(row);} return o; },
+  hstripes: () => { const o=[]; for (let r=0;r<12;r++){const row=[];for (let c=0;c<12;c++) row.push(Math.floor(r/2)%2===0?1:8); o.push(row);} return o; },
+  gradient: () => { const o=[]; for (let r=0;r<12;r++){const v=Math.round(8-7*r/11);const row=[];for (let c=0;c<12;c++) row.push(v); o.push(row);} return o; },
+  disk: () => { const o=[]; const cy=5.5,cx=5.5,R=3.3; for (let r=0;r<12;r++){const row=[];for (let c=0;c<12;c++){const d=Math.sqrt((r-cy)**2+(c-cx)**2); row.push(d<R?8:1);} o.push(row);} return o; },
+  cross: () => { const o=[]; for (let r=0;r<12;r++){const row=[];for (let c=0;c<12;c++){row.push((c===5||c===6||r===5||r===6)?8:1);} o.push(row);} return o; },
+  noise: () => { const o=[]; for (let r=0;r<12;r++){const row=[];for (let c=0;c<12;c++){const h=(r*311+c*547+23)|0;row.push(((h^(h>>5))&7)+1);} o.push(row);} return o; }
+};
+let FR = { img: 'vstripes' };
+function renderFR() {
+  const img = FR_IMAGES[FR.img]();
+  const inG = document.getElementById('fr-img');
+  inG.style.gridTemplateColumns = 'repeat(12, 22px)';
+  inG.innerHTML = '';
+  for (let r=0; r<12; r++) for (let c=0; c<12; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.width = '22px'; cell.style.height = '22px'; cell.style.fontSize = '10px';
+    const sh = shadeInput(img[r][c]);
+    cell.style.background = sh.bg; cell.style.color = sh.fg; cell.textContent = img[r][c];
+    inG.appendChild(cell);
+  }
+  const row = document.getElementById('fr-resp');
+  row.innerHTML = '';
+  FR_FILTERS.forEach(f => {
+    const card = document.createElement('div'); card.className = 'resp-card';
+    const t = document.createElement('div'); t.className = 'resp-name'; t.textContent = f.name; card.appendChild(t);
+    const mini = document.createElement('div'); mini.className = 'grid'; mini.style.gridTemplateColumns = 'repeat(3, 16px)'; mini.style.marginBottom = '8px';
+    const fmax = Math.max(...f.mat.flat().map(Math.abs), 1);
+    f.mat.flat().forEach(v => {
+      const c = document.createElement('div'); c.className = 'cell';
+      c.style.width = '16px'; c.style.height = '16px'; c.style.fontSize = '8px';
+      const sh = shade(v, fmax, v < 0 ? SAGE : RUST);
+      c.style.background = sh.bg; c.style.color = sh.fg; c.textContent = v;
+      mini.appendChild(c);
+    });
+    card.appendChild(mini);
+    const out = conv(img, f.mat);
+    const N = out.length;
+    const omax = Math.max(...out.flat().map(Math.abs), 1);
+    const fm = document.createElement('div'); fm.className = 'grid';
+    fm.style.gridTemplateColumns = `repeat(${N}, 11px)`;
+    for (let r=0; r<N; r++) for (let c=0; c<N; c++) {
+      const cell = document.createElement('div'); cell.className = 'cell';
+      cell.style.width = '11px'; cell.style.height = '11px'; cell.style.fontSize = '0';
+      const sh = shadeSigned(out[r][c], omax);
+      cell.style.background = sh.bg; cell.style.color = sh.fg;
+      fm.appendChild(cell);
+    }
+    card.appendChild(fm);
+    row.appendChild(card);
+  });
+}
+document.getElementById('fr-picker').addEventListener('click', e => {
+  const b = e.target.closest('[data-fr]'); if (!b) return;
+  document.querySelectorAll('#fr-picker .btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  FR.img = b.dataset.fr;
+  renderFR();
+});
+renderFR();
+
+// ═══════════════════════════════════════════════════════════
+// SLIDE 28: TRAINING DEMO
+// ═══════════════════════════════════════════════════════════
+const TR_INPUT_RAW = [[1,1,1,8,1,1,1],[1,1,1,8,1,1,1],[1,1,1,8,1,1,1],[8,8,8,8,8,8,8],[1,1,1,8,1,1,1],[1,1,1,8,1,1,1],[1,1,1,8,1,1,1]];
+const TR_INPUT_N = TR_INPUT_RAW.map(r => r.map(v => v/8));
+const TR_TARGETS = {
+  vedge: { filter:[[-1,0,1],[-1,0,1],[-1,0,1]], lr:0.08, maxSteps:80 },
+  hedge: { filter:[[-1,-1,-1],[0,0,0],[1,1,1]], lr:0.08, maxSteps:80 },
+  blob:  { filter:[[-1,-1,-1],[-1,8,-1],[-1,-1,-1]], lr:0.10, maxSteps:150 },
+  blur:  { filter:[[1/9,1/9,1/9],[1/9,1/9,1/9],[1/9,1/9,1/9]], lr:0.08, maxSteps:80 }
+};
+function trRandom() { return [[Math.random()*0.4-0.2,Math.random()*0.4-0.2,Math.random()*0.4-0.2],[Math.random()*0.4-0.2,Math.random()*0.4-0.2,Math.random()*0.4-0.2],[Math.random()*0.4-0.2,Math.random()*0.4-0.2,Math.random()*0.4-0.2]]; }
+let TR = { target:'vedge', filter:trRandom(), step:0, losses:[], running:false, timer:null };
+
+function trRenderInput() {
+  const g = document.getElementById('tr-input');
+  g.style.gridTemplateColumns = 'repeat(7, 26px)'; g.innerHTML = '';
+  for (let r=0; r<7; r++) for (let c=0; c<7; c++) {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    cell.style.width = '26px'; cell.style.height = '26px'; cell.style.fontSize = '11px';
+    const sh = shadeInput(TR_INPUT_RAW[r][c]);
+    cell.style.background = sh.bg; cell.style.color = sh.fg; cell.textContent = TR_INPUT_RAW[r][c];
+    g.appendChild(cell);
+  }
+}
+function trRenderFilter(id, mat, maxAbsHint) {
+  const g = document.getElementById(id);
+  g.style.gridTemplateColumns = 'repeat(3, 34px)'; g.innerHTML = '';
+  const flat = mat.flat();
+  const maxAbs = maxAbsHint || Math.max(...flat.map(Math.abs), 0.001);
+  for (let r=0; r<3; r++) for (let c=0; c<3; c++) {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    cell.style.width = '34px'; cell.style.height = '34px'; cell.style.fontSize = '10px';
+    const v = mat[r][c];
+    const sh = shadeSigned(v, maxAbs);
+    cell.style.background = sh.bg; cell.style.color = sh.fg;
+    cell.textContent = fmt(v, Math.abs(v) >= 10 ? 1 : 2);
+    g.appendChild(cell);
+  }
+}
+function trRenderOutput(id, mat, maxAbsHint) {
+  const g = document.getElementById(id);
+  const N = mat.length;
+  g.style.gridTemplateColumns = `repeat(${N}, 24px)`; g.innerHTML = '';
+  const flat = mat.flat();
+  const maxAbs = maxAbsHint || Math.max(...flat.map(Math.abs), 0.001);
+  for (let r=0; r<N; r++) for (let c=0; c<N; c++) {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    cell.style.width = '24px'; cell.style.height = '24px'; cell.style.fontSize = '9px';
+    const v = mat[r][c];
+    const sh = shadeSigned(v, maxAbs);
+    cell.style.background = sh.bg; cell.style.color = sh.fg;
+    cell.textContent = fmt(v, 1);
+    g.appendChild(cell);
+  }
+}
+function trSpark() {
+  const svg = document.getElementById('tr-spark');
+  svg.innerHTML = '';
+  if (TR.losses.length < 2) return;
+  const W=180, H=42, pad=3;
+  const maxL = Math.max(...TR.losses), minL = Math.min(...TR.losses);
+  const range = maxL - minL || 1;
+  const pts = TR.losses.map((l, i) => {
+    const x = pad + (W-2*pad) * (i / Math.max(TR.losses.length-1, 1));
+    const y = H - pad - (H-2*pad) * ((l-minL)/range);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const p = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  p.setAttribute('points', pts);
+  p.setAttribute('fill','none');
+  p.setAttribute('stroke','#B8543A');
+  p.setAttribute('stroke-width','1.5');
+  svg.appendChild(p);
+}
+function trRender() {
+  const t = TR_TARGETS[TR.target];
+  const targetOut = conv(TR_INPUT_N, t.filter);
+  const learnedOut = conv(TR_INPUT_N, TR.filter);
+  const tMax = Math.max(...t.filter.flat().map(Math.abs), ...TR.filter.flat().map(Math.abs));
+  const oMax = Math.max(...targetOut.flat().map(Math.abs), ...learnedOut.flat().map(Math.abs));
+  trRenderInput();
+  trRenderFilter('tr-tfilter', t.filter, tMax);
+  trRenderFilter('tr-lfilter', TR.filter, tMax);
+  trRenderOutput('tr-toutput', targetOut, oMax);
+  trRenderOutput('tr-loutput', learnedOut, oMax);
+  document.getElementById('tr-step').textContent = TR.step;
+  if (TR.losses.length > 0) {
+    document.getElementById('tr-loss').textContent = fmt(TR.losses[TR.losses.length-1], 3);
+  } else {
+    let l=0, N=targetOut.length;
+    for (let i=0; i<N; i++) for (let j=0; j<N; j++) { const e = learnedOut[i][j]-targetOut[i][j]; l += e*e; }
+    document.getElementById('tr-loss').textContent = fmt(l/(N*N), 3);
+  }
+  trSpark();
+}
+function trDoStep() {
+  const t = TR_TARGETS[TR.target];
+  const targetOut = conv(TR_INPUT_N, t.filter);
+  const learnedOut = conv(TR_INPUT_N, TR.filter);
+  const N = learnedOut.length, M = N*N;
+  const grad = [[0,0,0],[0,0,0],[0,0,0]];
+  let loss = 0;
+  for (let i=0; i<N; i++) for (let j=0; j<N; j++) {
+    const err = learnedOut[i][j] - targetOut[i][j];
+    loss += err*err;
+    for (let a=0; a<3; a++) for (let b=0; b<3; b++) grad[a][b] += 2 * err * TR_INPUT_N[i+a][j+b];
+  }
+  for (let a=0; a<3; a++) for (let b=0; b<3; b++) TR.filter[a][b] -= t.lr * grad[a][b] / M;
+  TR.step++;
+  TR.losses.push(loss/M);
+}
+function trStop() {
+  TR.running = false;
+  if (TR.timer) { clearInterval(TR.timer); TR.timer = null; }
+  document.getElementById('tr-run').textContent = '▶ Run';
+}
+function trStart() {
+  if (TR.running) return;
+  TR.running = true;
+  document.getElementById('tr-run').textContent = '❚❚ Pause';
+  const maxS = TR_TARGETS[TR.target].maxSteps;
+  TR.timer = setInterval(() => {
+    if (TR.step >= maxS) { trStop(); return; }
+    trDoStep(); trRender();
+  }, 80);
+}
+document.getElementById('tr-run').addEventListener('click', () => { TR.running ? trStop() : trStart(); });
+document.getElementById('tr-step-btn').addEventListener('click', () => { trStop(); if (TR.step < TR_TARGETS[TR.target].maxSteps) { trDoStep(); trRender(); } });
+document.getElementById('tr-reset').addEventListener('click', () => { trStop(); TR.filter = trRandom(); TR.step = 0; TR.losses = []; trRender(); });
+document.getElementById('tr-picker').addEventListener('click', e => {
+  const b = e.target.closest('[data-tr]'); if (!b) return;
+  trStop();
+  document.querySelectorAll('#tr-picker .btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  TR.target = b.dataset.tr;
+  TR.filter = trRandom(); TR.step = 0; TR.losses = [];
+  trRender();
+});
+trRender();
+</script>
+</body>
+</html>
